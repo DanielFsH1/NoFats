@@ -7,7 +7,9 @@ export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const { person } = await requireUser();
-  const profile = await getPersonProfile(person.id);
+  const profile = await getPersonProfile(person.id, {
+    includeAdminProfiles: true,
+  });
 
   if (!profile) {
     return null;

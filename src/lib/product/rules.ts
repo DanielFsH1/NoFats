@@ -5,6 +5,7 @@ export type UserRole = "ADMIN" | "USER";
 export type VotingPerson = {
   kind: PersonKind;
   status: PersonStatus;
+  userRole?: UserRole | null;
 };
 
 export type DisplayNameInput = {
@@ -154,8 +155,23 @@ export function mergeSiteCopy(input?: Partial<SiteCopy> | null): SiteCopy {
 
 export function countEligibleRealUsers(people: VotingPerson[]) {
   return people.filter(
-    (person) => person.kind === "REAL" && person.status === "ACTIVE",
+    (person) =>
+      person.kind === "REAL" &&
+      person.status === "ACTIVE" &&
+      person.userRole !== "ADMIN",
   ).length;
+}
+
+export function isSocialProfileVisible(input: { userRole?: UserRole | null }) {
+  return input.userRole !== "ADMIN";
+}
+
+export function shouldReplacePrimaryNickname(
+  current?: { status?: string | null; isTemporary?: boolean | null } | null,
+) {
+  return (
+    !current || current.status === "TEMPORARY" || current.isTemporary === true
+  );
 }
 
 export function resolveDisplayName(input: DisplayNameInput) {
@@ -209,8 +225,10 @@ export function chooseDailyNickname(input: DailyNicknameInput) {
           return a.oldestNomination - b.oldestNomination;
         }
 
-        return stableHash(`${input.dateKey}:${input.personId}:${a.nickname.id}`) -
-          stableHash(`${input.dateKey}:${input.personId}:${b.nickname.id}`);
+        return (
+          stableHash(`${input.dateKey}:${input.personId}:${a.nickname.id}`) -
+          stableHash(`${input.dateKey}:${input.personId}:${b.nickname.id}`)
+        );
       });
 
     return ranked[0]?.nickname ?? null;
@@ -269,7 +287,11 @@ function cleanOptional(value?: string | null) {
   return trimmed && trimmed.length > 0 ? trimmed : null;
 }
 
-function cleanWithFallback(value: unknown, fallback: string, maxLength: number) {
+function cleanWithFallback(
+  value: unknown,
+  fallback: string,
+  maxLength: number,
+) {
   if (typeof value !== "string") {
     return fallback;
   }

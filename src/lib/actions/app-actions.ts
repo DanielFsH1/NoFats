@@ -17,7 +17,11 @@ import {
   users,
 } from "@/lib/db/schema";
 import { getVotingThreshold } from "@/lib/data/queries";
-import { getAppSettings, saveSiteCopy, saveVoteSettings } from "@/lib/data/settings";
+import {
+  getAppSettings,
+  saveSiteCopy,
+  saveVoteSettings,
+} from "@/lib/data/settings";
 import { id } from "@/lib/ids";
 import { getTomorrowDateKey } from "@/lib/product/dates";
 import {
@@ -25,6 +29,7 @@ import {
   getProposalThresholds,
   mergeSiteCopy,
   normalizeVoteSettings,
+  shouldReplacePrimaryNickname,
 } from "@/lib/product/rules";
 import { createInviteToken, hashInviteToken } from "@/lib/security/token";
 import { requireAdmin, requireUser } from "@/lib/session";
@@ -52,14 +57,16 @@ async function logActivity(input: {
   message: string;
   metadata?: Record<string, unknown>;
 }) {
-  await getDb().insert(activityEvents).values({
-    id: id("act"),
-    actorUserId: input.actorUserId,
-    personId: input.personId,
-    type: input.type,
-    message: input.message,
-    metadata: input.metadata ?? {},
-  });
+  await getDb()
+    .insert(activityEvents)
+    .values({
+      id: id("act"),
+      actorUserId: input.actorUserId,
+      personId: input.personId,
+      type: input.type,
+      message: input.message,
+      metadata: input.metadata ?? {},
+    });
 }
 
 async function audit(input: {
@@ -70,15 +77,81 @@ async function audit(input: {
   before?: unknown;
   after?: unknown;
 }) {
-  await getDb().insert(auditLogs).values({
-    id: id("audit"),
-    actorUserId: input.actorUserId,
-    entityType: input.entityType,
-    entityId: input.entityId,
-    action: input.action,
-    before: input.before,
-    after: input.after,
+  await getDb()
+    .insert(auditLogs)
+    .values({
+      id: id("audit"),
+      actorUserId: input.actorUserId,
+      entityType: input.entityType,
+      entityId: input.entityId,
+      action: input.action,
+      before: input.before,
+      after: input.after,
+    });
+}
+
+async function promoteApprovedNicknameIfNeeded(
+  target: typeof people.$inferSelect,
+  nicknameId: string,
+) {
+  const db = getDb();
+  const [primaryNickname] = target.primaryNicknameId
+    ? await db
+        .select({
+          status: nicknames.status,
+          isTemporary: nicknames.isTemporary,
+        })
+        .from(nicknames)
+        .where(eq(nicknames.id, target.primaryNicknameId))
+        .limit(1)
+    : [];
+
+  if (!shouldReplacePrimaryNickname(primaryNickname)) {
+    return;
+  }
+
+  await db
+    .update(people)
+    .set({ primaryNicknameId: nicknameId, updatedAt: new Date() })
+    .where(eq(people.id, target.id));
+}
+
+async function createPendingProposalWithCreatorApproval(input: {
+  type: typeof proposals.$inferInsert.type;
+  targetPersonId?: string;
+  createdByUserId: string;
+  title: string;
+  summary?: string;
+  payload: Record<string, unknown>;
+}) {
+  const db = getDb();
+  const proposalId = id("proposal");
+
+  await db.insert(proposals).values({
+    id: proposalId,
+    type: input.type,
+    status: "PENDING",
+    targetPersonId: input.targetPersonId,
+    createdByUserId: input.createdByUserId,
+    title: input.title,
+    summary: input.summary ?? "",
+    payload: input.payload,
   });
+
+  await db
+    .insert(proposalVotes)
+    .values({
+      id: id("vote"),
+      proposalId,
+      userId: input.createdByUserId,
+      decision: "APPROVE",
+      comment: "Apoyo inicial al crear la propuesta.",
+    })
+    .onConflictDoNothing();
+
+  await evaluateProposal(proposalId);
+
+  return proposalId;
 }
 
 export async function createRegistrationSlotAction(formData: FormData) {
@@ -87,12 +160,14 @@ export async function createRegistrationSlotAction(formData: FormData) {
   const token = createInviteToken();
   const slotId = id("slot");
 
-  await getDb().insert(registrationSlots).values({
-    id: slotId,
-    shortName,
-    tokenHash: hashInviteToken(token),
-    createdByUserId: user.id,
-  });
+  await getDb()
+    .insert(registrationSlots)
+    .values({
+      id: slotId,
+      shortName,
+      tokenHash: hashInviteToken(token),
+      createdByUserId: user.id,
+    });
 
   await logActivity({
     actorUserId: user.id,
@@ -100,7 +175,9 @@ export async function createRegistrationSlotAction(formData: FormData) {
     message: `Se creo un cupo para ${shortName}.`,
   });
 
-  redirect(`/admin?invite=${encodeURIComponent(`${appUrl()}/invite/${token}`)}`);
+  redirect(
+    `/admin?invite=${encodeURIComponent(`${appUrl()}/invite/${token}`)}`,
+  );
 }
 
 export async function disableRegistrationSlotAction(formData: FormData) {
@@ -152,10 +229,8 @@ export async function proposeFictionalPersonAction(formData: FormData) {
   const displayName = shortTextSchema.parse(getString(formData, "displayName"));
   const fullName = getString(formData, "fullName").trim();
 
-  await getDb().insert(proposals).values({
-    id: id("proposal"),
+  await createPendingProposalWithCreatorApproval({
     type: "CREATE_FICTIONAL_PERSON",
-    status: "PENDING",
     createdByUserId: user.id,
     title: `Crear "${displayName}"`,
     summary: fullName,
@@ -182,10 +257,8 @@ export async function proposeSiteCopyAction(formData: FormData) {
     dashboardSubtitle: getString(formData, "dashboardSubtitle"),
   });
 
-  await getDb().insert(proposals).values({
-    id: id("proposal"),
+  await createPendingProposalWithCreatorApproval({
     type: "UPDATE_SITE_COPY",
-    status: "PENDING",
     createdByUserId: user.id,
     title: "Cambiar textos principales",
     summary: copy.loginHeroTitle,
@@ -266,7 +339,11 @@ export async function updateProfileAction(formData: FormData) {
   const { user } = await requireUser();
   const personId = getString(formData, "personId");
   const db = getDb();
-  const [target] = await db.select().from(people).where(eq(people.id, personId)).limit(1);
+  const [target] = await db
+    .select()
+    .from(people)
+    .where(eq(people.id, personId))
+    .limit(1);
 
   if (!target) {
     throw new Error("Perfil no encontrado.");
@@ -318,7 +395,11 @@ export async function addNicknameAction(formData: FormData) {
   const personId = getString(formData, "personId");
   const value = shortTextSchema.parse(getString(formData, "nickname"));
   const db = getDb();
-  const [target] = await db.select().from(people).where(eq(people.id, personId)).limit(1);
+  const [target] = await db
+    .select()
+    .from(people)
+    .where(eq(people.id, personId))
+    .limit(1);
 
   if (!target) {
     throw new Error("Perfil no encontrado.");
@@ -340,12 +421,7 @@ export async function addNicknameAction(formData: FormData) {
       approvedAt: new Date(),
     });
 
-    if (!target.primaryNicknameId || target.primaryNicknameId.startsWith("temp")) {
-      await db
-        .update(people)
-        .set({ primaryNicknameId: nicknameId, updatedAt: new Date() })
-        .where(eq(people.id, personId));
-    }
+    await promoteApprovedNicknameIfNeeded(target, nicknameId);
 
     await logActivity({
       actorUserId: user.id,
@@ -354,8 +430,7 @@ export async function addNicknameAction(formData: FormData) {
       message: `${user.name} agrego el apodo "${value}".`,
     });
   } else {
-    await db.insert(proposals).values({
-      id: id("proposal"),
+    await createPendingProposalWithCreatorApproval({
       type: "ADD_NICKNAME",
       targetPersonId: personId,
       createdByUserId: user.id,
@@ -404,8 +479,7 @@ export async function removeNicknameAction(formData: FormData) {
       .set({ status: "DELETED", deletedAt: new Date() })
       .where(eq(nicknames.id, nicknameId));
   } else {
-    await db.insert(proposals).values({
-      id: id("proposal"),
+    await createPendingProposalWithCreatorApproval({
       type: "REMOVE_NICKNAME",
       targetPersonId: target.id,
       createdByUserId: user.id,
@@ -444,13 +518,15 @@ export async function createPostAction(formData: FormData) {
   const parentPostId = getString(formData, "parentPostId") || null;
   const body = bodySchema.parse(getString(formData, "body"));
 
-  await getDb().insert(posts).values({
-    id: id("post"),
-    profilePersonId: personId,
-    authorUserId: user.id,
-    parentPostId,
-    body,
-  });
+  await getDb()
+    .insert(posts)
+    .values({
+      id: id("post"),
+      profilePersonId: personId,
+      authorUserId: user.id,
+      parentPostId,
+      body,
+    });
 
   await logActivity({
     actorUserId: user.id,
@@ -469,7 +545,11 @@ export async function deletePostAction(formData: FormData) {
   const { user } = await requireUser();
   const postId = getString(formData, "postId");
   const db = getDb();
-  const [post] = await db.select().from(posts).where(eq(posts.id, postId)).limit(1);
+  const [post] = await db
+    .select()
+    .from(posts)
+    .where(eq(posts.id, postId))
+    .limit(1);
 
   if (!post) {
     throw new Error("Publicacion no encontrada.");
@@ -497,8 +577,7 @@ export async function deletePostAction(formData: FormData) {
       .set({ deletedAt: new Date(), updatedAt: new Date() })
       .where(eq(posts.id, postId));
   } else {
-    await db.insert(proposals).values({
-      id: id("proposal"),
+    await createPendingProposalWithCreatorApproval({
       type: "REMOVE_POST",
       targetPersonId: target.id,
       createdByUserId: user.id,
@@ -523,13 +602,15 @@ export async function addCommentAction(formData: FormData) {
   const personId = getString(formData, "personId");
   const body = bodySchema.parse(getString(formData, "body"));
 
-  await getDb().insert(comments).values({
-    id: id("comment"),
-    subjectType,
-    subjectId,
-    authorUserId: user.id,
-    body,
-  });
+  await getDb()
+    .insert(comments)
+    .values({
+      id: id("comment"),
+      subjectType,
+      subjectId,
+      authorUserId: user.id,
+      body,
+    });
 
   await logActivity({
     actorUserId: user.id,
@@ -549,12 +630,14 @@ export async function addProposalCommentAction(formData: FormData) {
   const proposalId = getString(formData, "proposalId");
   const body = bodySchema.parse(getString(formData, "body"));
 
-  await getDb().insert(proposalComments).values({
-    id: id("pcomment"),
-    proposalId,
-    authorUserId: user.id,
-    body,
-  });
+  await getDb()
+    .insert(proposalComments)
+    .values({
+      id: id("pcomment"),
+      proposalId,
+      authorUserId: user.id,
+      body,
+    });
 
   revalidatePath("/proposals");
 }
@@ -562,7 +645,8 @@ export async function addProposalCommentAction(formData: FormData) {
 export async function voteProposalAction(formData: FormData) {
   const { user } = await requireUser();
   const proposalId = getString(formData, "proposalId");
-  const decision = getString(formData, "decision") === "REJECT" ? "REJECT" : "APPROVE";
+  const decision =
+    getString(formData, "decision") === "REJECT" ? "REJECT" : "APPROVE";
   const comment = getString(formData, "comment").trim().slice(0, 500);
   const db = getDb();
 
@@ -631,15 +715,25 @@ async function evaluateProposal(proposalId: string) {
       ),
     );
 
-  if (approvalThreshold > 0 && Number(approvalCount.value) >= approvalThreshold) {
+  if (
+    approvalThreshold > 0 &&
+    Number(approvalCount.value) >= approvalThreshold
+  ) {
     await applyProposal(proposal);
     return;
   }
 
-  if (rejectionThreshold > 0 && Number(rejectionCount.value) >= rejectionThreshold) {
+  if (
+    rejectionThreshold > 0 &&
+    Number(rejectionCount.value) >= rejectionThreshold
+  ) {
     await db
       .update(proposals)
-      .set({ status: "REJECTED", resolvedAt: new Date(), updatedAt: new Date() })
+      .set({
+        status: "REJECTED",
+        resolvedAt: new Date(),
+        updatedAt: new Date(),
+      })
       .where(eq(proposals.id, proposalId));
   }
 }
@@ -659,6 +753,16 @@ async function applyProposal(proposal: typeof proposals.$inferSelect) {
       proposedByUserId: proposal.createdByUserId,
       approvedAt: new Date(),
     });
+
+    const [target] = await db
+      .select()
+      .from(people)
+      .where(eq(people.id, proposal.targetPersonId))
+      .limit(1);
+
+    if (target) {
+      await promoteApprovedNicknameIfNeeded(target, nicknameId);
+    }
   }
 
   if (proposal.type === "REMOVE_NICKNAME") {

@@ -27,7 +27,9 @@ export default async function PersonPage({
   params: Promise<{ id: string }>;
 }) {
   const [{ user }, { id }] = await Promise.all([requireUser(), params]);
-  const profile = await getPersonProfile(id);
+  const profile = await getPersonProfile(id, {
+    includeAdminProfiles: user.role === "ADMIN",
+  });
 
   if (!profile) {
     notFound();
@@ -39,7 +41,8 @@ export default async function PersonPage({
   });
 
   const approvedNicknames = profile.nicknames.filter(
-    (nickname) => nickname.status === "APPROVED" || nickname.status === "TEMPORARY",
+    (nickname) =>
+      nickname.status === "APPROVED" || nickname.status === "TEMPORARY",
   );
 
   return (
@@ -150,8 +153,16 @@ export default async function PersonPage({
                   </p>
                   {!post.deletedAt && !post.parentPostId ? (
                     <form action={createPostAction} className="mt-4 flex gap-2">
-                      <input type="hidden" name="personId" value={profile.person.id} />
-                      <input type="hidden" name="parentPostId" value={post.id} />
+                      <input
+                        type="hidden"
+                        name="personId"
+                        value={profile.person.id}
+                      />
+                      <input
+                        type="hidden"
+                        name="parentPostId"
+                        value={post.id}
+                      />
                       <input
                         name="body"
                         aria-label="Responder"
@@ -165,7 +176,10 @@ export default async function PersonPage({
                 </article>
               ))}
               {profile.posts.length === 0 ? (
-                <EmptyState title="Muro vacio" body="Aun no hay publicaciones." />
+                <EmptyState
+                  title="Muro vacio"
+                  body="Aun no hay publicaciones."
+                />
               ) : null}
             </div>
           </div>
@@ -187,7 +201,10 @@ export default async function PersonPage({
             </form>
             <div className="mt-4 space-y-2">
               {profile.comments.map((comment) => (
-                <p key={comment.id} className="soft-card rounded-2xl p-4 text-sm">
+                <p
+                  key={comment.id}
+                  className="soft-card rounded-2xl p-4 text-sm"
+                >
                   <strong>{comment.authorName}</strong> {comment.body}
                 </p>
               ))}
@@ -203,7 +220,11 @@ export default async function PersonPage({
                 Personalizar
               </h2>
               <form action={updateProfileAction} className="mt-4 space-y-3">
-                <input type="hidden" name="personId" value={profile.person.id} />
+                <input
+                  type="hidden"
+                  name="personId"
+                  value={profile.person.id}
+                />
                 <input
                   name="fullName"
                   aria-label="Nombre completo o descriptivo"
@@ -279,15 +300,27 @@ export default async function PersonPage({
                   <div className="flex gap-1">
                     {nickname.status === "APPROVED" ? (
                       <form action={nominateDailyNicknameAction}>
-                        <input type="hidden" name="personId" value={profile.person.id} />
-                        <input type="hidden" name="nicknameId" value={nickname.id} />
+                        <input
+                          type="hidden"
+                          name="personId"
+                          value={profile.person.id}
+                        />
+                        <input
+                          type="hidden"
+                          name="nicknameId"
+                          value={nickname.id}
+                        />
                         <button className="rounded-lg px-2 py-1 text-xs font-bold text-[var(--accent)] hover:bg-[var(--surface-strong)]">
                           manana
                         </button>
                       </form>
                     ) : null}
                     <form action={removeNicknameAction}>
-                      <input type="hidden" name="nicknameId" value={nickname.id} />
+                      <input
+                        type="hidden"
+                        name="nicknameId"
+                        value={nickname.id}
+                      />
                       <button className="rounded-lg px-2 py-1 text-xs font-bold text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]">
                         quitar
                       </button>

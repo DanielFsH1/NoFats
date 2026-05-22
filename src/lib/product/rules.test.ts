@@ -6,9 +6,11 @@ import {
   countEligibleRealUsers,
   getProposalThresholds,
   getVoteThreshold,
+  isSocialProfileVisible,
   mergeSiteCopy,
   normalizeVoteSettings,
   resolveDisplayName,
+  shouldReplacePrimaryNickname,
 } from "./rules";
 
 describe("getVoteThreshold", () => {
@@ -62,7 +64,8 @@ describe("mergeSiteCopy", () => {
     ).toMatchObject({
       appName: "La Banda",
       loginHeroTitle: "Un titulo nuevo",
-      loginHeroSubtitle: "Apodos, votaciones, fotos y publicaciones con acceso privado.",
+      loginHeroSubtitle:
+        "Apodos, votaciones, fotos y publicaciones con acceso privado.",
       loginEyebrow: "privado",
     });
   });
@@ -76,8 +79,17 @@ describe("countEligibleRealUsers", () => {
         { kind: "FICTIONAL", status: "ACTIVE" },
         { kind: "REAL", status: "DISABLED" },
         { kind: "REAL", status: "ACTIVE" },
+        { kind: "REAL", status: "ACTIVE", userRole: "ADMIN" },
       ]),
     ).toBe(2);
+  });
+});
+
+describe("isSocialProfileVisible", () => {
+  it("hides admin people from social surfaces", () => {
+    expect(isSocialProfileVisible({ userRole: "ADMIN" })).toBe(false);
+    expect(isSocialProfileVisible({ userRole: "USER" })).toBe(true);
+    expect(isSocialProfileVisible({ userRole: null })).toBe(true);
   });
 });
 
@@ -99,6 +111,18 @@ describe("resolveDisplayName", () => {
     ).toBe("D-Man");
 
     expect(resolveDisplayName({ initialDisplayName: "Diego" })).toBe("Diego");
+  });
+});
+
+describe("shouldReplacePrimaryNickname", () => {
+  it("promotes the first real approved nickname over empty or temporary primaries", () => {
+    expect(shouldReplacePrimaryNickname(null)).toBe(true);
+    expect(
+      shouldReplacePrimaryNickname({ status: "TEMPORARY", isTemporary: true }),
+    ).toBe(true);
+    expect(
+      shouldReplacePrimaryNickname({ status: "APPROVED", isTemporary: false }),
+    ).toBe(false);
   });
 });
 

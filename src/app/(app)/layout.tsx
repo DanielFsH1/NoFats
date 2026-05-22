@@ -13,13 +13,17 @@ export default async function PrivateLayout({
   const { user, person } = await requireUser();
   const [{ siteCopy }, people] = await Promise.all([
     getAppSettings(),
-    getPeopleSummaries(),
+    getPeopleSummaries(undefined, { includeAdminProfiles: true }),
   ]);
   const displayName =
-    people.find((summary) => summary.id === person.id)?.displayName ?? user.name;
+    people.find((summary) => summary.id === person.id)?.displayName ??
+    user.name;
 
   return (
-    <AppShell appName={siteCopy.appName} user={{ name: displayName, role: user.role }}>
+    <AppShell
+      appName={siteCopy.appName}
+      user={{ name: displayName, role: user.role }}
+    >
       {children}
     </AppShell>
   );

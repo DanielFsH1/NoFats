@@ -4,18 +4,26 @@ import {
   dailyNicknameNominations,
   nicknames,
   people,
+  users,
 } from "@/lib/db/schema";
 import { id } from "@/lib/ids";
 import { getDateKey } from "@/lib/product/dates";
 import { chooseDailyNickname } from "@/lib/product/rules";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 
 export async function materializeDailyNicknames(dateKey = getDateKey()) {
   const db = getDb();
   const activePeople = await db
     .select({ id: people.id })
     .from(people)
-    .where(and(eq(people.status, "ACTIVE"), isNull(people.deletedAt)));
+    .leftJoin(users, eq(people.userId, users.id))
+    .where(
+      and(
+        eq(people.status, "ACTIVE"),
+        isNull(people.deletedAt),
+        sql`(${users.role} is null or ${users.role} <> 'ADMIN')`,
+      ),
+    );
 
   for (const person of activePeople) {
     const [existing] = await db
