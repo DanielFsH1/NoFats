@@ -11,16 +11,16 @@ const globalForDb = globalThis as typeof globalThis & {
 };
 
 function createDb() {
-  const databaseUrl = process.env.DATABASE_URL;
-
-  if (databaseUrl) {
-    return drizzle(neon(databaseUrl), { schema });
-  }
-
   const pgliteDataDir = process.env.PGLITE_DATA_DIR;
 
   if (pgliteDataDir) {
     return drizzlePglite(new PGlite(pgliteDataDir), { schema });
+  }
+
+  const databaseUrl = process.env.DATABASE_URL;
+
+  if (databaseUrl) {
+    return drizzle(neon(databaseUrl), { schema });
   }
 
   throw new Error("DATABASE_URL or PGLITE_DATA_DIR is required for database access.");
