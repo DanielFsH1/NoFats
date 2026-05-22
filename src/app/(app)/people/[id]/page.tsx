@@ -1,4 +1,5 @@
 import { EmptyState } from "@/components/app-shell";
+import { PersonAvatar } from "@/components/person-avatar";
 import { SubmitButton } from "@/components/submit-button";
 import {
   addCommentAction,
@@ -42,20 +43,37 @@ export default async function PersonPage({
   );
 
   return (
-    <div className="space-y-6">
-      <section className="overflow-hidden rounded-[28px] border border-[var(--border)] bg-white shadow-[var(--shadow)]">
+    <div className="mx-auto max-w-6xl space-y-6">
+      <section className="overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow)]">
         <div
-          className="h-48 sm:h-64"
+          className="relative h-48 overflow-hidden sm:h-64"
           style={{ backgroundColor: profile.person.themeColor }}
-        />
+        >
+          {profile.person.dailyPhoto ? (
+            <Image
+              src={`/api/media/${profile.person.dailyPhoto.id}`}
+              alt={profile.person.dailyPhoto.altText || "Foto del dia"}
+              fill
+              sizes="100vw"
+              unoptimized
+              className="object-cover opacity-45 saturate-125"
+            />
+          ) : null}
+          <div className="absolute inset-0 bg-[linear-gradient(135deg,rgb(0_0_0/0.18),transparent_44%,rgb(255_255_255/0.14))]" />
+        </div>
         <div className="-mt-16 p-5 sm:p-8">
-          <div className="grid size-32 place-items-center rounded-[32px] border-8 border-white bg-[var(--surface-strong)] text-4xl font-black">
-            {profile.person.displayName.slice(0, 2).toUpperCase()}
-          </div>
-          <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_360px]">
+          <PersonAvatar
+            dailyPhoto={profile.person.dailyPhoto}
+            name={profile.person.displayName}
+            size="xl"
+            className="border-8"
+          />
+          <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_340px]">
             <div>
-              <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent)]">
-                {profile.person.dailyNickname ? "Apodo del dia" : "Perfil"}
+              <p className="text-sm font-bold uppercase text-[var(--accent)]">
+                {profile.person.dailyNickname || profile.person.dailyPhoto
+                  ? "Hoy en el perfil"
+                  : "Perfil"}
               </p>
               <h1 className="mt-2 text-4xl font-black sm:text-6xl">
                 {profile.person.displayName}
@@ -66,7 +84,9 @@ export default async function PersonPage({
                 </p>
               ) : null}
               <p className="mt-4 max-w-3xl text-[var(--muted)]">
-                {profile.person.description || profile.person.bio || "Sin descripcion todavia."}
+                {profile.person.description ||
+                  profile.person.bio ||
+                  "Sin descripcion todavia."}
               </p>
             </div>
             <div className="rounded-3xl border border-[var(--border)] bg-[var(--surface-strong)] p-5">
@@ -75,14 +95,14 @@ export default async function PersonPage({
                 {profile.person.phrase || "Pendiente de una frase legendaria."}
               </p>
               <p className="mt-4 text-sm text-[var(--muted)]">
-                {approvedNicknames.length} apodos aprobados · {profile.media.length} fotos
+                {approvedNicknames.length} apodos / {profile.media.length} fotos
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
+      <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-6">
           <div className="surface rounded-[28px] p-5">
             <h2 className="flex items-center gap-2 text-2xl font-black">
@@ -96,13 +116,16 @@ export default async function PersonPage({
                 aria-label="Publica algo breve"
                 required
                 placeholder="Publica algo breve..."
-                className="min-h-28 w-full rounded-2xl border border-[var(--border)] bg-white p-4"
+                className="field min-h-28 w-full p-4"
               />
               <SubmitButton>Publicar</SubmitButton>
             </form>
             <div className="mt-6 space-y-4">
               {profile.posts.map((post) => (
-                <article key={post.id} className="rounded-3xl border border-[var(--border)] bg-white p-5">
+                <article
+                  key={post.id}
+                  className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-bold">{post.authorName}</p>
@@ -114,7 +137,7 @@ export default async function PersonPage({
                       <form action={deletePostAction}>
                         <input type="hidden" name="postId" value={post.id} />
                         <button
-                          className="inline-flex size-9 items-center justify-center rounded-xl text-[var(--muted)] hover:bg-red-50 hover:text-[var(--danger)]"
+                          className="inline-flex size-9 items-center justify-center rounded-xl text-[var(--muted)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:text-[var(--danger)]"
                           aria-label="Eliminar publicacion"
                         >
                           <Trash2 className="size-4" aria-hidden />
@@ -134,7 +157,7 @@ export default async function PersonPage({
                         aria-label="Responder"
                         required
                         placeholder="Responder..."
-                        className="h-10 min-w-0 flex-1 rounded-xl border border-[var(--border)] px-3 text-sm"
+                        className="field h-10 min-w-0 flex-1 px-3 text-sm"
                       />
                       <SubmitButton variant="secondary">Responder</SubmitButton>
                     </form>
@@ -158,13 +181,13 @@ export default async function PersonPage({
                 aria-label="Comentar"
                 required
                 placeholder="Comentar..."
-                className="h-11 min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-white px-3"
+                className="field h-11 min-w-0 flex-1 px-3"
               />
               <SubmitButton variant="secondary">Comentar</SubmitButton>
             </form>
             <div className="mt-4 space-y-2">
               {profile.comments.map((comment) => (
-                <p key={comment.id} className="rounded-2xl bg-white p-4 text-sm">
+                <p key={comment.id} className="soft-card rounded-2xl p-4 text-sm">
                   <strong>{comment.authorName}</strong> {comment.body}
                 </p>
               ))}
@@ -186,28 +209,28 @@ export default async function PersonPage({
                   aria-label="Nombre completo o descriptivo"
                   defaultValue={profile.person.fullName ?? ""}
                   placeholder="Nombre completo o descriptivo"
-                  className="h-11 w-full rounded-xl border border-[var(--border)] px-3"
+                  className="field h-11 w-full px-3"
                 />
                 <input
                   name="bio"
                   aria-label="Bio corta"
                   defaultValue={profile.person.bio}
                   placeholder="Bio corta"
-                  className="h-11 w-full rounded-xl border border-[var(--border)] px-3"
+                  className="field h-11 w-full px-3"
                 />
                 <textarea
                   name="description"
                   aria-label="Descripcion"
                   defaultValue={profile.person.description}
                   placeholder="Descripcion"
-                  className="min-h-24 w-full rounded-xl border border-[var(--border)] p-3"
+                  className="field min-h-24 w-full p-3"
                 />
                 <input
                   name="phrase"
                   aria-label="Frase personal"
                   defaultValue={profile.person.phrase}
                   placeholder="Frase personal"
-                  className="h-11 w-full rounded-xl border border-[var(--border)] px-3"
+                  className="field h-11 w-full px-3"
                 />
                 <label className="block text-sm font-semibold">
                   Color
@@ -215,7 +238,7 @@ export default async function PersonPage({
                     name="themeColor"
                     type="color"
                     defaultValue={profile.person.themeColor}
-                    className="mt-2 h-11 w-full rounded-xl border border-[var(--border)] bg-white p-1"
+                    className="field mt-2 h-11 w-full p-1"
                   />
                 </label>
                 <SubmitButton>Guardar</SubmitButton>
@@ -235,17 +258,22 @@ export default async function PersonPage({
                 aria-label="Nuevo apodo"
                 required
                 placeholder="Nuevo apodo"
-                className="h-11 min-w-0 flex-1 rounded-xl border border-[var(--border)] px-3"
+                className="field h-11 min-w-0 flex-1 px-3"
               />
               <SubmitButton variant="secondary">Agregar</SubmitButton>
             </form>
             <div className="mt-4 space-y-2">
               {approvedNicknames.map((nickname) => (
-                <div key={nickname.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white p-3">
+                <div
+                  key={nickname.id}
+                  className="soft-card flex items-center justify-between gap-3 rounded-2xl p-3"
+                >
                   <span>
                     <strong>{nickname.value}</strong>
                     {nickname.status === "TEMPORARY" ? (
-                      <span className="ml-2 text-xs text-[var(--muted)]">temporal</span>
+                      <span className="ml-2 text-xs text-[var(--muted)]">
+                        inicial
+                      </span>
                     ) : null}
                   </span>
                   <div className="flex gap-1">
@@ -260,7 +288,7 @@ export default async function PersonPage({
                     ) : null}
                     <form action={removeNicknameAction}>
                       <input type="hidden" name="nicknameId" value={nickname.id} />
-                      <button className="rounded-lg px-2 py-1 text-xs font-bold text-[var(--danger)] hover:bg-red-50">
+                      <button className="rounded-lg px-2 py-1 text-xs font-bold text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]">
                         quitar
                       </button>
                     </form>
@@ -275,6 +303,9 @@ export default async function PersonPage({
               <Camera className="size-5" aria-hidden />
               Galeria
             </h2>
+            <p className="mt-2 text-sm text-[var(--muted)]">
+              Las fotos aprobadas rotan como foto de perfil del dia.
+            </p>
             <form action={uploadImageAction} className="mt-4 space-y-3">
               <input type="hidden" name="personId" value={profile.person.id} />
               <input
@@ -288,7 +319,7 @@ export default async function PersonPage({
                 name="altText"
                 aria-label="Descripcion breve"
                 placeholder="Descripcion breve"
-                className="h-11 w-full rounded-xl border border-[var(--border)] px-3"
+                className="field h-11 w-full px-3"
               />
               <SubmitButton variant="secondary">Subir foto</SubmitButton>
             </form>

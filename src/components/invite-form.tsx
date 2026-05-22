@@ -20,7 +20,7 @@ export function InviteForm({ token }: { token: string }) {
           type="email"
           required
           autoComplete="email"
-          className="mt-2 h-12 w-full rounded-xl border border-[var(--border)] bg-white px-3"
+          className="field mt-2 h-12 w-full px-3"
         />
       </label>
       <label className="block text-sm font-semibold">
@@ -29,7 +29,7 @@ export function InviteForm({ token }: { token: string }) {
           name="fullName"
           required
           autoComplete="name"
-          className="mt-2 h-12 w-full rounded-xl border border-[var(--border)] bg-white px-3"
+          className="field mt-2 h-12 w-full px-3"
         />
       </label>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -40,7 +40,7 @@ export function InviteForm({ token }: { token: string }) {
             type="password"
             required
             autoComplete="new-password"
-            className="mt-2 h-12 w-full rounded-xl border border-[var(--border)] bg-white px-3"
+            className="field mt-2 h-12 w-full px-3"
           />
         </label>
         <label className="block text-sm font-semibold">
@@ -50,12 +50,12 @@ export function InviteForm({ token }: { token: string }) {
             type="password"
             required
             autoComplete="new-password"
-            className="mt-2 h-12 w-full rounded-xl border border-[var(--border)] bg-white px-3"
+            className="field mt-2 h-12 w-full px-3"
           />
         </label>
       </div>
       {state.message ? (
-        <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+        <p className="rounded-xl border border-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,var(--surface))] px-3 py-2 text-sm text-[var(--danger)]">
           {state.message}
         </p>
       ) : null}

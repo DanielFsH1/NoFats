@@ -157,7 +157,7 @@ export async function proposeFictionalPersonAction(formData: FormData) {
     type: "CREATE_FICTIONAL_PERSON",
     status: "PENDING",
     createdByUserId: user.id,
-    title: `${user.name} propone crear el perfil "${displayName}"`,
+    title: `Crear "${displayName}"`,
     summary: fullName,
     payload: { displayName, fullName },
   });
@@ -187,7 +187,7 @@ export async function proposeSiteCopyAction(formData: FormData) {
     type: "UPDATE_SITE_COPY",
     status: "PENDING",
     createdByUserId: user.id,
-    title: `${user.name} propone cambiar textos de la web`,
+    title: "Cambiar textos principales",
     summary: copy.loginHeroTitle,
     payload: { siteCopy: copy },
   });
@@ -359,7 +359,7 @@ export async function addNicknameAction(formData: FormData) {
       type: "ADD_NICKNAME",
       targetPersonId: personId,
       createdByUserId: user.id,
-      title: `${user.name} propone el apodo "${value}"`,
+      title: `Agregar "${value}"`,
       summary: `Nuevo apodo para ${target.initialDisplayName}.`,
       payload: { value },
     });
@@ -409,7 +409,7 @@ export async function removeNicknameAction(formData: FormData) {
       type: "REMOVE_NICKNAME",
       targetPersonId: target.id,
       createdByUserId: user.id,
-      title: `${user.name} propone eliminar "${nickname.value}"`,
+      title: `Quitar "${nickname.value}"`,
       summary: `Solicitud de eliminacion de apodo.`,
       payload: { nicknameId, value: nickname.value },
     });
@@ -502,7 +502,7 @@ export async function deletePostAction(formData: FormData) {
       type: "REMOVE_POST",
       targetPersonId: target.id,
       createdByUserId: user.id,
-      title: `${user.name} propone eliminar una publicacion`,
+      title: "Eliminar una publicacion",
       summary: post.body.slice(0, 180),
       payload: { postId },
     });
@@ -735,7 +735,7 @@ async function applyProposal(proposal: typeof proposals.$inferSelect) {
     actorUserId: proposal.createdByUserId,
     personId: proposal.targetPersonId ?? undefined,
     type: "proposal.applied",
-    message: `Se aprobo y aplico: ${proposal.title}.`,
+    message: "Se aprobo y aplico una propuesta.",
   });
 }
 

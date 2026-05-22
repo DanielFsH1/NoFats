@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/app-shell";
+import { getPeopleSummaries } from "@/lib/data/queries";
 import { getAppSettings } from "@/lib/data/settings";
 import { requireUser } from "@/lib/session";
 
@@ -9,11 +10,16 @@ export default async function PrivateLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user } = await requireUser();
-  const { siteCopy } = await getAppSettings();
+  const { user, person } = await requireUser();
+  const [{ siteCopy }, people] = await Promise.all([
+    getAppSettings(),
+    getPeopleSummaries(),
+  ]);
+  const displayName =
+    people.find((summary) => summary.id === person.id)?.displayName ?? user.name;
 
   return (
-    <AppShell appName={siteCopy.appName} user={{ name: user.name, role: user.role }}>
+    <AppShell appName={siteCopy.appName} user={{ name: displayName, role: user.role }}>
       {children}
     </AppShell>
   );

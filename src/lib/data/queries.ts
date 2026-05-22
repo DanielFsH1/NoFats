@@ -14,7 +14,7 @@ import {
 } from "@/lib/db/schema";
 import { materializeDailyNicknames } from "@/lib/data/daily";
 import { getDateKey } from "@/lib/product/dates";
-import { resolveDisplayName } from "@/lib/product/rules";
+import { chooseDailyMedia, resolveDisplayName } from "@/lib/product/rules";
 import { and, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 export async function getPeopleSummaries(dateKey = getDateKey()) {
@@ -52,6 +52,26 @@ export async function getPeopleSummaries(dateKey = getDateKey()) {
             ),
           )
       : [];
+  const mediaRows =
+    ids.length > 0
+      ? await db
+          .select({
+            id: mediaAssets.id,
+            personId: mediaAssets.personId,
+            thumbnailUrl: mediaAssets.thumbnailUrl,
+            url: mediaAssets.url,
+            altText: mediaAssets.altText,
+            createdAt: mediaAssets.createdAt,
+          })
+          .from(mediaAssets)
+          .where(
+            and(
+              inArray(mediaAssets.personId, ids),
+              eq(mediaAssets.status, "APPROVED"),
+              isNull(mediaAssets.deletedAt),
+            ),
+          )
+      : [];
 
   return rows.map((person) => {
     const personNicknames = nicknameRows.filter(
@@ -64,6 +84,13 @@ export async function getPeopleSummaries(dateKey = getDateKey()) {
     const dailyNickname = personNicknames.find(
       (nickname) => nickname.id === daily?.nicknameId,
     );
+    const personMedia = mediaRows.filter((asset) => asset.personId === person.id);
+    const dailyPhoto =
+      chooseDailyMedia({
+        dateKey,
+        personId: person.id,
+        media: personMedia,
+      }) ?? null;
 
     return {
       ...person,
@@ -73,9 +100,11 @@ export async function getPeopleSummaries(dateKey = getDateKey()) {
         dailyNickname: dailyNickname?.value,
       }),
       dailyNickname: dailyNickname?.value ?? null,
+      dailyPhoto,
       nicknameCount: personNicknames.filter(
         (nickname) => nickname.status === "APPROVED",
       ).length,
+      photoCount: personMedia.length,
     };
   });
 }
@@ -91,6 +120,7 @@ export async function getDashboardData() {
       body: posts.body,
       createdAt: posts.createdAt,
       profilePersonId: posts.profilePersonId,
+      authorUserId: posts.authorUserId,
       authorName: users.name,
     })
     .from(posts)
@@ -110,7 +140,12 @@ export async function getDashboardData() {
     dateKey,
     people: peopleSummaries,
     pendingProposals,
-    recentPosts,
+    recentPosts: recentPosts.map((post) => ({
+      ...post,
+      authorName:
+        peopleSummaries.find((person) => person.userId === post.authorUserId)
+          ?.displayName ?? post.authorName,
+    })),
     recentActivity,
     recentMedia,
   };
@@ -118,7 +153,8 @@ export async function getDashboardData() {
 
 export async function getPersonProfile(personId: string) {
   const db = getDb();
-  const [personSummary] = (await getPeopleSummaries()).filter(
+  const peopleSummaries = await getPeopleSummaries();
+  const [personSummary] = peopleSummaries.filter(
     (person) => person.id === personId,
   );
 
@@ -195,12 +231,25 @@ export async function getPersonProfile(personId: string) {
     )
     .orderBy(desc(proposals.createdAt));
 
+  const personByUserId = new Map(
+    peopleSummaries
+      .filter((person) => person.userId)
+      .map((person) => [person.userId, person]),
+  );
+
   return {
     person: personSummary,
     nicknames: personNicknames,
-    posts: personPosts,
+    posts: personPosts.map((post) => ({
+      ...post,
+      authorName: personByUserId.get(post.authorUserId)?.displayName ?? post.authorName,
+    })),
     media: personMedia,
-    comments: profileComments,
+    comments: profileComments.map((comment) => ({
+      ...comment,
+      authorName:
+        personByUserId.get(comment.authorUserId)?.displayName ?? comment.authorName,
+    })),
     activity: profileActivity,
     pendingProposals,
   };
@@ -208,7 +257,8 @@ export async function getPersonProfile(personId: string) {
 
 export async function getProposalsWithVotes(status?: "PENDING") {
   const db = getDb();
-  const rows = await db
+  const [rows, peopleSummaries] = await Promise.all([
+    db
     .select({
       id: proposals.id,
       type: proposals.type,
@@ -225,9 +275,17 @@ export async function getProposalsWithVotes(status?: "PENDING") {
     .innerJoin(users, eq(proposals.createdByUserId, users.id))
     .where(status ? eq(proposals.status, status) : undefined)
     .orderBy(desc(proposals.createdAt))
-    .limit(80);
+      .limit(80),
+    getPeopleSummaries(),
+  ]);
 
   const proposalIds = rows.map((proposal) => proposal.id);
+  const personById = new Map(peopleSummaries.map((person) => [person.id, person]));
+  const personByUserId = new Map(
+    peopleSummaries
+      .filter((person) => person.userId)
+      .map((person) => [person.userId, person]),
+  );
   const voteRows =
     proposalIds.length > 0
       ? await db
@@ -240,6 +298,12 @@ export async function getProposalsWithVotes(status?: "PENDING") {
     const votes = voteRows.filter((vote) => vote.proposalId === proposal.id);
     return {
       ...proposal,
+      creatorDisplayName:
+        personByUserId.get(proposal.createdByUserId)?.displayName ??
+        proposal.createdByName,
+      targetDisplayName: proposal.targetPersonId
+        ? personById.get(proposal.targetPersonId)?.displayName ?? null
+        : null,
       approvals: votes.filter((vote) => vote.decision === "APPROVE").length,
       rejections: votes.filter((vote) => vote.decision === "REJECT").length,
       votes,
@@ -263,7 +327,8 @@ export async function getActivity(limit = 40) {
 }
 
 export async function getGallery() {
-  return getDb()
+  const [assets, peopleSummaries] = await Promise.all([
+    getDb()
     .select({
       id: mediaAssets.id,
       personId: mediaAssets.personId,
@@ -276,7 +341,20 @@ export async function getGallery() {
     .from(mediaAssets)
     .innerJoin(people, eq(mediaAssets.personId, people.id))
     .where(and(eq(mediaAssets.status, "APPROVED"), isNull(mediaAssets.deletedAt)))
-    .orderBy(desc(mediaAssets.createdAt));
+      .orderBy(desc(mediaAssets.createdAt)),
+    getPeopleSummaries(),
+  ]);
+  const personById = new Map(peopleSummaries.map((person) => [person.id, person]));
+
+  return assets.map((asset) => {
+    const person = personById.get(asset.personId);
+
+    return {
+      ...asset,
+      displayName: person?.displayName ?? asset.displayName,
+      isDailyPhoto: person?.dailyPhoto?.id === asset.id,
+    };
+  });
 }
 
 export async function getAdminOverview() {
@@ -361,18 +439,32 @@ export async function getVotingThreshold() {
 }
 
 export async function getVoteCommentList(proposalId: string) {
-  return getDb()
-    .select({
-      id: proposalVotes.id,
-      decision: proposalVotes.decision,
-      comment: proposalVotes.comment,
-      createdAt: proposalVotes.createdAt,
-      authorName: users.name,
-    })
-    .from(proposalVotes)
-    .innerJoin(users, eq(proposalVotes.userId, users.id))
-    .where(eq(proposalVotes.proposalId, proposalId))
-    .orderBy(desc(proposalVotes.createdAt));
+  const [votes, peopleSummaries] = await Promise.all([
+    getDb()
+      .select({
+        id: proposalVotes.id,
+        decision: proposalVotes.decision,
+        comment: proposalVotes.comment,
+        createdAt: proposalVotes.createdAt,
+        userId: users.id,
+        authorName: users.name,
+      })
+      .from(proposalVotes)
+      .innerJoin(users, eq(proposalVotes.userId, users.id))
+      .where(eq(proposalVotes.proposalId, proposalId))
+      .orderBy(desc(proposalVotes.createdAt)),
+    getPeopleSummaries(),
+  ]);
+  const personByUserId = new Map(
+    peopleSummaries
+      .filter((person) => person.userId)
+      .map((person) => [person.userId, person]),
+  );
+
+  return votes.map((vote) => ({
+    ...vote,
+    authorName: personByUserId.get(vote.userId)?.displayName ?? vote.authorName,
+  }));
 }
 
 export async function searchPeople(query: string) {

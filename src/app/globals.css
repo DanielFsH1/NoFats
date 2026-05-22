@@ -1,21 +1,44 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f7f8f4;
-  --foreground: #17211d;
-  --surface: #ffffff;
-  --surface-strong: #f0f4ee;
-  --muted: #66736b;
-  --border: #dce5db;
-  --accent: #1f8a70;
-  --accent-ink: #06382e;
-  --coral: #e7654d;
-  --blue: #2f6fbb;
-  --warning: #a85d00;
+  color-scheme: light;
+  --background: #f4f6f5;
+  --foreground: #181b1a;
+  --surface: #fffefa;
+  --surface-muted: #f1f5f3;
+  --surface-strong: #e6eeea;
+  --muted: #626d68;
+  --border: #d5dfda;
+  --accent: #197c68;
+  --accent-ink: #073a33;
+  --coral: #d85f49;
+  --blue: #2b6f98;
+  --warning: #9a5b00;
   --danger: #b42318;
   --success: #176b43;
-  --shadow: 0 18px 55px rgb(23 33 29 / 12%);
+  --shadow: 0 18px 50px rgb(24 27 26 / 12%);
+  --shadow-soft: 0 10px 28px rgb(24 27 26 / 9%);
   --radius: 18px;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #101312;
+  --foreground: #f5f0e8;
+  --surface: #171b1a;
+  --surface-muted: #121716;
+  --surface-strong: #242a28;
+  --muted: #aaa49b;
+  --border: #303834;
+  --accent: #5dd1b5;
+  --accent-ink: #c9fff2;
+  --coral: #ff8c72;
+  --blue: #7bb7e6;
+  --warning: #ffc066;
+  --danger: #ff7d72;
+  --success: #78d99a;
+  --shadow: 0 22px 60px rgb(0 0 0 / 38%);
+  --shadow-soft: 0 12px 34px rgb(0 0 0 / 24%);
 }
 
 @theme inline {
@@ -32,8 +55,8 @@
 html {
   min-height: 100%;
   background:
-    radial-gradient(circle at 18% 8%, rgb(31 138 112 / 10%), transparent 30rem),
-    radial-gradient(circle at 88% 6%, rgb(231 101 77 / 9%), transparent 26rem),
+    radial-gradient(circle at 18% 8%, rgb(25 124 104 / 10%), transparent 30rem),
+    radial-gradient(circle at 88% 6%, rgb(216 95 73 / 9%), transparent 26rem),
     var(--background);
 }
 
@@ -62,15 +85,65 @@ select:focus-visible {
 }
 
 .surface {
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
 }
 
+.soft-card {
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  box-shadow: var(--shadow-soft);
+}
+
 .frost {
-  background: rgb(255 255 255 / 78%);
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
   backdrop-filter: blur(18px);
-  border: 1px solid rgb(220 229 219 / 80%);
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+}
+
+.field {
+  border-radius: 0.875rem;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  color: var(--foreground);
+}
+
+.field::placeholder {
+  color: color-mix(in srgb, var(--muted) 72%, transparent);
+}
+
+.pill {
+  display: inline-flex;
+  min-height: 1.75rem;
+  align-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  color: var(--accent-ink);
+  padding: 0.25rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.pill-muted {
+  background: var(--surface-strong);
+  color: var(--muted);
+}
+
+.avatar-frame {
+  box-shadow: 0 14px 32px rgb(24 27 26 / 16%);
+}
+
+.theme-icon-sun {
+  display: none;
+}
+
+html[data-theme="dark"] .theme-icon-sun {
+  display: block;
+}
+
+html[data-theme="dark"] .theme-icon-moon {
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -81,4 +154,40 @@ select:focus-visible {
     transition: none !important;
     animation: none !important;
   }
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) {
+    color-scheme: dark;
+    --background: #101312;
+    --foreground: #f5f0e8;
+    --surface: #171b1a;
+    --surface-muted: #121716;
+    --surface-strong: #242a28;
+    --muted: #aaa49b;
+    --border: #303834;
+    --accent: #5dd1b5;
+    --accent-ink: #c9fff2;
+    --coral: #ff8c72;
+    --blue: #7bb7e6;
+    --warning: #ffc066;
+    --danger: #ff7d72;
+    --success: #78d99a;
+    --shadow: 0 22px 60px rgb(0 0 0 / 38%);
+    --shadow-soft: 0 12px 34px rgb(0 0 0 / 24%);
+  }
+
+  html:not([data-theme="light"]) {
+    background:
+      radial-gradient(circle at 18% 8%, rgb(93 209 181 / 11%), transparent 30rem),
+      radial-gradient(circle at 88% 6%, rgb(255 140 114 / 9%), transparent 26rem),
+      var(--background);
+  }
+}
+
+html[data-theme="dark"] {
+  background:
+    radial-gradient(circle at 18% 8%, rgb(93 209 181 / 11%), transparent 30rem),
+    radial-gradient(circle at 88% 6%, rgb(255 140 114 / 9%), transparent 26rem),
+    var(--background);
 }

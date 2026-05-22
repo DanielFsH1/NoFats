@@ -41,6 +41,12 @@ export type DailyNicknameInput = {
   nominations: DailyNicknameNomination[];
 };
 
+export type DailyMediaOption = {
+  id: string;
+  altText?: string | null;
+  createdAt?: Date | null;
+};
+
 export type VoteSettings = {
   approvalPercentage: number;
   rejectionPercentage: number;
@@ -215,6 +221,34 @@ export function chooseDailyNickname(input: DailyNicknameInput) {
       stableHash(`${input.dateKey}:${input.personId}:${a.id}`) -
       stableHash(`${input.dateKey}:${input.personId}:${b.id}`),
   );
+
+  return sorted[0] ?? null;
+}
+
+export function chooseDailyMedia({
+  dateKey,
+  personId,
+  media,
+}: {
+  dateKey: string;
+  personId: string;
+  media: DailyMediaOption[];
+}) {
+  if (media.length === 0) {
+    return null;
+  }
+
+  const sorted = [...media].sort((a, b) => {
+    const hashDiff =
+      stableHash(`${dateKey}:${personId}:${a.id}`) -
+      stableHash(`${dateKey}:${personId}:${b.id}`);
+
+    if (hashDiff !== 0) {
+      return hashDiff;
+    }
+
+    return (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0);
+  });
 
   return sorted[0] ?? null;
 }

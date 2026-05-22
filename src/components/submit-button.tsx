@@ -15,7 +15,7 @@ export function SubmitButton({
     primary:
       "bg-[var(--accent)] text-white hover:bg-[var(--accent-ink)] disabled:bg-slate-400",
     secondary:
-      "border border-[var(--border)] bg-white text-[var(--foreground)] hover:bg-[var(--surface-strong)]",
+      "border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-strong)]",
     danger: "bg-[var(--danger)] text-white hover:bg-red-800",
   };
 

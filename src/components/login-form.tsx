@@ -15,7 +15,7 @@ export function LoginForm() {
       <input type="hidden" name="next" value={searchParams.get("next") ?? "/"} />
       <label className="block text-sm font-semibold">
         Correo
-        <span className="mt-2 flex items-center gap-2 rounded-xl border border-[var(--border)] bg-white px-3">
+        <span className="field mt-2 flex items-center gap-2 px-3">
           <Mail className="size-4 text-[var(--muted)]" aria-hidden />
           <input
             name="email"
@@ -28,7 +28,7 @@ export function LoginForm() {
       </label>
       <label className="block text-sm font-semibold">
         Contrasena
-        <span className="mt-2 flex items-center gap-2 rounded-xl border border-[var(--border)] bg-white px-3">
+        <span className="field mt-2 flex items-center gap-2 px-3">
           <LockKeyhole className="size-4 text-[var(--muted)]" aria-hidden />
           <input
             name="password"
@@ -40,7 +40,7 @@ export function LoginForm() {
         </span>
       </label>
       {state.message ? (
-        <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+        <p className="rounded-xl border border-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,var(--surface))] px-3 py-2 text-sm text-[var(--danger)]">
           {state.message}
         </p>
       ) : null}

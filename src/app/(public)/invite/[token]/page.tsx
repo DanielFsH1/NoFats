@@ -44,7 +44,7 @@ export default async function InvitePage({
   return (
     <main className="grid min-h-screen place-items-center px-4 py-10">
       <section className="surface w-full max-w-2xl rounded-[28px] p-8 sm:p-10">
-        <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent)]">
+        <p className="text-sm font-bold uppercase text-[var(--accent)]">
           Cupo para {slot.shortName}
         </p>
         <h1 className="mt-3 text-4xl font-black">Crea tu cuenta</h1>

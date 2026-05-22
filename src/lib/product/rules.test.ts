@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canManagePerson,
+  chooseDailyMedia,
   chooseDailyNickname,
   countEligibleRealUsers,
   getProposalThresholds,
@@ -166,5 +167,31 @@ describe("chooseDailyNickname", () => {
     };
 
     expect(chooseDailyNickname(input)).toEqual(chooseDailyNickname(input));
+  });
+});
+
+describe("chooseDailyMedia", () => {
+  it("selects a stable profile photo for the same person and day", () => {
+    const input = {
+      dateKey: "2026-05-22",
+      personId: "p42",
+      media: [
+        { id: "m1", createdAt: new Date("2026-05-20T10:00:00Z") },
+        { id: "m2", createdAt: new Date("2026-05-21T10:00:00Z") },
+        { id: "m3", createdAt: new Date("2026-05-22T10:00:00Z") },
+      ],
+    };
+
+    expect(chooseDailyMedia(input)).toEqual(chooseDailyMedia(input));
+  });
+
+  it("returns null when a profile has no approved photos", () => {
+    expect(
+      chooseDailyMedia({
+        dateKey: "2026-05-22",
+        personId: "p42",
+        media: [],
+      }),
+    ).toBeNull();
   });
 });

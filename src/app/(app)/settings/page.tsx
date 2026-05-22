@@ -29,7 +29,7 @@ export default async function SettingsPage() {
             <input
               name="fullName"
               defaultValue={profile.person.fullName ?? ""}
-              className="mt-2 h-12 w-full rounded-xl border border-[var(--border)] px-3"
+              className="field mt-2 h-12 w-full px-3"
             />
           </label>
           <label className="block text-sm font-semibold">
@@ -37,7 +37,7 @@ export default async function SettingsPage() {
             <input
               name="bio"
               defaultValue={profile.person.bio}
-              className="mt-2 h-12 w-full rounded-xl border border-[var(--border)] px-3"
+              className="field mt-2 h-12 w-full px-3"
             />
           </label>
           <label className="block text-sm font-semibold">
@@ -45,7 +45,7 @@ export default async function SettingsPage() {
             <textarea
               name="description"
               defaultValue={profile.person.description}
-              className="mt-2 min-h-32 w-full rounded-xl border border-[var(--border)] p-3"
+              className="field mt-2 min-h-32 w-full p-3"
             />
           </label>
           <label className="block text-sm font-semibold">
@@ -53,7 +53,7 @@ export default async function SettingsPage() {
             <input
               name="phrase"
               defaultValue={profile.person.phrase}
-              className="mt-2 h-12 w-full rounded-xl border border-[var(--border)] px-3"
+              className="field mt-2 h-12 w-full px-3"
             />
           </label>
           <label className="block text-sm font-semibold">
@@ -62,7 +62,7 @@ export default async function SettingsPage() {
               name="themeColor"
               type="color"
               defaultValue={profile.person.themeColor}
-              className="mt-2 h-12 w-full rounded-xl border border-[var(--border)] bg-white p-1"
+              className="field mt-2 h-12 w-full p-1"
             />
           </label>
           <SubmitButton>Guardar cambios</SubmitButton>

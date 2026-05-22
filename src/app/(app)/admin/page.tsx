@@ -10,6 +10,7 @@ import {
 import { getAdminOverview } from "@/lib/data/queries";
 import { getAppSettings } from "@/lib/data/settings";
 import { formatDateTime } from "@/lib/product/dates";
+import { roleLabel, slotStatusLabel } from "@/lib/product/presentation";
 import { requireAdmin } from "@/lib/session";
 import { Copy, PencilLine, SlidersHorizontal, UserPlus, UsersRound } from "lucide-react";
 
@@ -40,8 +41,8 @@ export default async function AdminPage({
   ];
 
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="mx-auto max-w-6xl space-y-6">
+      <div className="max-w-3xl">
         <h1 className="text-4xl font-black">Administracion</h1>
         <p className="mt-2 text-[var(--muted)]">
           Cupos, perfiles, usuarios, metricas y moderacion basica.
@@ -49,7 +50,7 @@ export default async function AdminPage({
       </div>
 
       {invite ? (
-        <section className="rounded-[24px] border border-[var(--accent)] bg-white p-5">
+        <section className="rounded-[24px] border border-[var(--accent)] bg-[var(--surface)] p-5">
           <p className="flex items-center gap-2 text-sm font-bold text-[var(--accent)]">
             <Copy className="size-4" aria-hidden />
             Enlace creado
@@ -92,7 +93,7 @@ export default async function AdminPage({
                 max={100}
                 required
                 defaultValue={settings.voteSettings.approvalPercentage}
-                className="mt-2 h-12 w-full rounded-xl border border-[var(--border)] px-3"
+                className="field mt-2 h-12 w-full px-3"
               />
             </div>
             <div>
@@ -107,7 +108,7 @@ export default async function AdminPage({
                 max={100}
                 required
                 defaultValue={settings.voteSettings.rejectionPercentage}
-                className="mt-2 h-12 w-full rounded-xl border border-[var(--border)] px-3"
+                className="field mt-2 h-12 w-full px-3"
               />
             </div>
             <SubmitButton>Guardar porcentajes</SubmitButton>
@@ -133,7 +134,7 @@ export default async function AdminPage({
                 name="appName"
                 required
                 defaultValue={settings.siteCopy.appName}
-                className="mt-2 h-12 w-full rounded-xl border border-[var(--border)] px-3"
+                className="field mt-2 h-12 w-full px-3"
               />
             </div>
             <div>
@@ -145,7 +146,7 @@ export default async function AdminPage({
                 name="loginEyebrow"
                 required
                 defaultValue={settings.siteCopy.loginEyebrow}
-                className="mt-2 h-12 w-full rounded-xl border border-[var(--border)] px-3"
+                className="field mt-2 h-12 w-full px-3"
               />
             </div>
             <div className="sm:col-span-2">
@@ -157,7 +158,7 @@ export default async function AdminPage({
                 name="loginHeroTitle"
                 required
                 defaultValue={settings.siteCopy.loginHeroTitle}
-                className="mt-2 min-h-24 w-full rounded-xl border border-[var(--border)] p-3"
+                className="field mt-2 min-h-24 w-full p-3"
               />
             </div>
             <div className="sm:col-span-2">
@@ -169,7 +170,7 @@ export default async function AdminPage({
                 name="loginHeroSubtitle"
                 required
                 defaultValue={settings.siteCopy.loginHeroSubtitle}
-                className="mt-2 min-h-24 w-full rounded-xl border border-[var(--border)] p-3"
+                className="field mt-2 min-h-24 w-full p-3"
               />
             </div>
             <div>
@@ -181,7 +182,7 @@ export default async function AdminPage({
                 name="dashboardTitle"
                 required
                 defaultValue={settings.siteCopy.dashboardTitle}
-                className="mt-2 h-12 w-full rounded-xl border border-[var(--border)] px-3"
+                className="field mt-2 h-12 w-full px-3"
               />
             </div>
             <div>
@@ -193,7 +194,7 @@ export default async function AdminPage({
                 name="dashboardSubtitle"
                 required
                 defaultValue={settings.siteCopy.dashboardSubtitle}
-                className="mt-2 h-12 w-full rounded-xl border border-[var(--border)] px-3"
+                className="field mt-2 h-12 w-full px-3"
               />
             </div>
             <div className="sm:col-span-2">
@@ -214,17 +215,17 @@ export default async function AdminPage({
               name="shortName"
               required
               placeholder="Diego, Max, Valentina..."
-              className="h-12 min-w-0 flex-1 rounded-xl border border-[var(--border)] px-3"
+              className="field h-12 min-w-0 flex-1 px-3"
             />
             <SubmitButton>Crear</SubmitButton>
           </form>
           <div className="mt-6 space-y-3">
             {overview.slots.map((slot) => (
-              <div key={slot.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white p-4">
+              <div key={slot.id} className="soft-card flex items-center justify-between gap-3 rounded-2xl p-4">
                 <span>
                   <strong>{slot.shortName}</strong>
                   <span className="ml-2 text-xs text-[var(--muted)]">
-                    {slot.status}
+                    {slotStatusLabel(slot.status)}
                   </span>
                   <span className="block text-xs text-[var(--muted)]">
                     {formatDateTime(slot.createdAt)}
@@ -251,12 +252,12 @@ export default async function AdminPage({
               name="displayName"
               required
               placeholder="Nombre visible"
-              className="h-12 w-full rounded-xl border border-[var(--border)] px-3"
+              className="field h-12 w-full px-3"
             />
             <input
               name="fullName"
               placeholder="Nombre descriptivo"
-              className="h-12 w-full rounded-xl border border-[var(--border)] px-3"
+              className="field h-12 w-full px-3"
             />
             <SubmitButton>Crear perfil</SubmitButton>
           </form>
@@ -281,7 +282,7 @@ export default async function AdminPage({
                 <tr key={user.id} className="border-b border-[var(--border)]">
                   <td className="py-3 font-semibold">{user.name}</td>
                   <td>{user.email}</td>
-                  <td>{user.role}</td>
+                  <td>{roleLabel(user.role)}</td>
                   <td>{user.disabled ? "Desactivado" : "Activo"}</td>
                   <td>
                     <form action={toggleUserDisabledAction}>
