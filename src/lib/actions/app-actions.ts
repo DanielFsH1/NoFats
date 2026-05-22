@@ -1,0 +1,627 @@
+"use server";
+
+import { getDb } from "@/lib/db";
+import {
+  activityEvents,
+  auditLogs,
+  comments,
+  dailyNicknameNominations,
+  mediaAssets,
+  nicknames,
+  people,
+  posts,
+  proposalComments,
+  proposals,
+  proposalVotes,
+  registrationSlots,
+  users,
+} from "@/lib/db/schema";
+import { getVotingThreshold } from "@/lib/data/queries";
+import { id } from "@/lib/ids";
+import { getTomorrowDateKey } from "@/lib/product/dates";
+import { canManagePerson, getVoteThreshold } from "@/lib/product/rules";
+import { createInviteToken, hashInviteToken } from "@/lib/security/token";
+import { requireAdmin, requireUser } from "@/lib/session";
+import { bodySchema, getString, profileSchema, shortTextSchema } from "@/lib/validation";
+import { and, count, eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+
+function appUrl() {
+  return process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
+}
+
+async function logActivity(input: {
+  actorUserId?: string;
+  personId?: string;
+  type: string;
+  message: string;
+  metadata?: Record<string, unknown>;
+}) {
+  await getDb().insert(activityEvents).values({
+    id: id("act"),
+    actorUserId: input.actorUserId,
+    personId: input.personId,
+    type: input.type,
+    message: input.message,
+    metadata: input.metadata ?? {},
+  });
+}
+
+async function audit(input: {
+  actorUserId?: string;
+  entityType: string;
+  entityId: string;
+  action: string;
+  before?: unknown;
+  after?: unknown;
+}) {
+  await getDb().insert(auditLogs).values({
+    id: id("audit"),
+    actorUserId: input.actorUserId,
+    entityType: input.entityType,
+    entityId: input.entityId,
+    action: input.action,
+    before: input.before,
+    after: input.after,
+  });
+}
+
+export async function createRegistrationSlotAction(formData: FormData) {
+  const { user } = await requireAdmin();
+  const shortName = shortTextSchema.parse(getString(formData, "shortName"));
+  const token = createInviteToken();
+  const slotId = id("slot");
+
+  await getDb().insert(registrationSlots).values({
+    id: slotId,
+    shortName,
+    tokenHash: hashInviteToken(token),
+    createdByUserId: user.id,
+  });
+
+  await logActivity({
+    actorUserId: user.id,
+    type: "admin.slot_created",
+    message: `Se creo un cupo para ${shortName}.`,
+  });
+
+  redirect(`/admin?invite=${encodeURIComponent(`${appUrl()}/invite/${token}`)}`);
+}
+
+export async function disableRegistrationSlotAction(formData: FormData) {
+  const { user } = await requireAdmin();
+  const slotId = getString(formData, "slotId");
+
+  await getDb()
+    .update(registrationSlots)
+    .set({ status: "DISABLED", updatedAt: new Date() })
+    .where(eq(registrationSlots.id, slotId));
+
+  await audit({
+    actorUserId: user.id,
+    entityType: "registration_slot",
+    entityId: slotId,
+    action: "disabled",
+  });
+
+  revalidatePath("/admin");
+}
+
+export async function createFictionalPersonAction(formData: FormData) {
+  const { user } = await requireAdmin();
+  const displayName = shortTextSchema.parse(getString(formData, "displayName"));
+  const fullName = getString(formData, "fullName").trim();
+  const personId = id("person");
+
+  await getDb().insert(people).values({
+    id: personId,
+    kind: "FICTIONAL",
+    initialDisplayName: displayName,
+    fullName,
+    createdByUserId: user.id,
+  });
+
+  await logActivity({
+    actorUserId: user.id,
+    personId,
+    type: "person.fictional_created",
+    message: `Se creo el perfil ${displayName}.`,
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/people");
+}
+
+export async function proposeFictionalPersonAction(formData: FormData) {
+  const { user } = await requireUser();
+  const displayName = shortTextSchema.parse(getString(formData, "displayName"));
+  const fullName = getString(formData, "fullName").trim();
+
+  await getDb().insert(proposals).values({
+    id: id("proposal"),
+    type: "CREATE_FICTIONAL_PERSON",
+    status: "PENDING",
+    createdByUserId: user.id,
+    title: `${user.name} propone crear el perfil "${displayName}"`,
+    summary: fullName,
+    payload: { displayName, fullName },
+  });
+
+  await logActivity({
+    actorUserId: user.id,
+    type: "proposal.created",
+    message: `${user.name} propuso crear ${displayName}.`,
+  });
+
+  revalidatePath("/proposals");
+}
+
+export async function updateProfileAction(formData: FormData) {
+  const { user } = await requireUser();
+  const personId = getString(formData, "personId");
+  const db = getDb();
+  const [target] = await db.select().from(people).where(eq(people.id, personId)).limit(1);
+
+  if (!target) {
+    throw new Error("Perfil no encontrado.");
+  }
+
+  if (
+    !canManagePerson({
+      actor: { id: user.id, role: user.role },
+      target: { kind: target.kind, userId: target.userId },
+    })
+  ) {
+    throw new Error("No tienes permiso para editar este perfil.");
+  }
+
+  const parsed = profileSchema.parse({
+    fullName: getString(formData, "fullName"),
+    bio: getString(formData, "bio"),
+    description: getString(formData, "description"),
+    phrase: getString(formData, "phrase"),
+    themeColor: getString(formData, "themeColor") || undefined,
+  });
+
+  await db
+    .update(people)
+    .set({ ...parsed, updatedAt: new Date() })
+    .where(eq(people.id, personId));
+
+  await audit({
+    actorUserId: user.id,
+    entityType: "person",
+    entityId: personId,
+    action: "profile.updated",
+    before: target,
+    after: parsed,
+  });
+
+  await logActivity({
+    actorUserId: user.id,
+    personId,
+    type: "person.updated",
+    message: `${user.name} actualizo el perfil.`,
+  });
+
+  revalidatePath(`/people/${personId}`);
+}
+
+export async function addNicknameAction(formData: FormData) {
+  const { user } = await requireUser();
+  const personId = getString(formData, "personId");
+  const value = shortTextSchema.parse(getString(formData, "nickname"));
+  const db = getDb();
+  const [target] = await db.select().from(people).where(eq(people.id, personId)).limit(1);
+
+  if (!target) {
+    throw new Error("Perfil no encontrado.");
+  }
+
+  const canDirectlyEdit = canManagePerson({
+    actor: { id: user.id, role: user.role },
+    target: { kind: target.kind, userId: target.userId },
+  });
+
+  if (canDirectlyEdit) {
+    const nicknameId = id("nick");
+    await db.insert(nicknames).values({
+      id: nicknameId,
+      personId,
+      value,
+      status: "APPROVED",
+      proposedByUserId: user.id,
+      approvedAt: new Date(),
+    });
+
+    if (!target.primaryNicknameId || target.primaryNicknameId.startsWith("temp")) {
+      await db
+        .update(people)
+        .set({ primaryNicknameId: nicknameId, updatedAt: new Date() })
+        .where(eq(people.id, personId));
+    }
+
+    await logActivity({
+      actorUserId: user.id,
+      personId,
+      type: "nickname.added",
+      message: `${user.name} agrego el apodo "${value}".`,
+    });
+  } else {
+    await db.insert(proposals).values({
+      id: id("proposal"),
+      type: "ADD_NICKNAME",
+      targetPersonId: personId,
+      createdByUserId: user.id,
+      title: `${user.name} propone el apodo "${value}"`,
+      summary: `Nuevo apodo para ${target.initialDisplayName}.`,
+      payload: { value },
+    });
+  }
+
+  revalidatePath(`/people/${personId}`);
+  revalidatePath("/proposals");
+}
+
+export async function removeNicknameAction(formData: FormData) {
+  const { user } = await requireUser();
+  const nicknameId = getString(formData, "nicknameId");
+  const db = getDb();
+  const [nickname] = await db
+    .select()
+    .from(nicknames)
+    .where(eq(nicknames.id, nicknameId))
+    .limit(1);
+
+  if (!nickname) {
+    throw new Error("Apodo no encontrado.");
+  }
+
+  const [target] = await db
+    .select()
+    .from(people)
+    .where(eq(people.id, nickname.personId))
+    .limit(1);
+
+  if (!target) {
+    throw new Error("Perfil no encontrado.");
+  }
+
+  const canDirectlyEdit = canManagePerson({
+    actor: { id: user.id, role: user.role },
+    target: { kind: target.kind, userId: target.userId },
+  });
+
+  if (canDirectlyEdit) {
+    await db
+      .update(nicknames)
+      .set({ status: "DELETED", deletedAt: new Date() })
+      .where(eq(nicknames.id, nicknameId));
+  } else {
+    await db.insert(proposals).values({
+      id: id("proposal"),
+      type: "REMOVE_NICKNAME",
+      targetPersonId: target.id,
+      createdByUserId: user.id,
+      title: `${user.name} propone eliminar "${nickname.value}"`,
+      summary: `Solicitud de eliminacion de apodo.`,
+      payload: { nicknameId, value: nickname.value },
+    });
+  }
+
+  revalidatePath(`/people/${target.id}`);
+  revalidatePath("/proposals");
+}
+
+export async function nominateDailyNicknameAction(formData: FormData) {
+  const { user } = await requireUser();
+  const personId = getString(formData, "personId");
+  const nicknameId = getString(formData, "nicknameId");
+
+  await getDb()
+    .insert(dailyNicknameNominations)
+    .values({
+      id: id("nom"),
+      personId,
+      nicknameId,
+      nominatedByUserId: user.id,
+      forDate: getTomorrowDateKey(),
+    })
+    .onConflictDoNothing();
+
+  revalidatePath(`/people/${personId}`);
+}
+
+export async function createPostAction(formData: FormData) {
+  const { user } = await requireUser();
+  const personId = getString(formData, "personId");
+  const parentPostId = getString(formData, "parentPostId") || null;
+  const body = bodySchema.parse(getString(formData, "body"));
+
+  await getDb().insert(posts).values({
+    id: id("post"),
+    profilePersonId: personId,
+    authorUserId: user.id,
+    parentPostId,
+    body,
+  });
+
+  await logActivity({
+    actorUserId: user.id,
+    personId,
+    type: parentPostId ? "post.reply_created" : "post.created",
+    message: parentPostId
+      ? `${user.name} respondio una publicacion.`
+      : `${user.name} publico en el muro.`,
+  });
+
+  revalidatePath(`/people/${personId}`);
+  revalidatePath("/");
+}
+
+export async function deletePostAction(formData: FormData) {
+  const { user } = await requireUser();
+  const postId = getString(formData, "postId");
+  const db = getDb();
+  const [post] = await db.select().from(posts).where(eq(posts.id, postId)).limit(1);
+
+  if (!post) {
+    throw new Error("Publicacion no encontrada.");
+  }
+
+  const [target] = await db
+    .select()
+    .from(people)
+    .where(eq(people.id, post.profilePersonId))
+    .limit(1);
+
+  if (!target) {
+    throw new Error("Perfil no encontrado.");
+  }
+
+  const canDeleteDirectly =
+    user.role === "ADMIN" ||
+    post.authorUserId === user.id ||
+    target.userId === user.id ||
+    target.kind === "FICTIONAL";
+
+  if (canDeleteDirectly) {
+    await db
+      .update(posts)
+      .set({ deletedAt: new Date(), updatedAt: new Date() })
+      .where(eq(posts.id, postId));
+  } else {
+    await db.insert(proposals).values({
+      id: id("proposal"),
+      type: "REMOVE_POST",
+      targetPersonId: target.id,
+      createdByUserId: user.id,
+      title: `${user.name} propone eliminar una publicacion`,
+      summary: post.body.slice(0, 180),
+      payload: { postId },
+    });
+  }
+
+  revalidatePath(`/people/${target.id}`);
+  revalidatePath("/proposals");
+}
+
+export async function addCommentAction(formData: FormData) {
+  const { user } = await requireUser();
+  const subjectType = getString(formData, "subjectType") as
+    | "PERSON"
+    | "PROPOSAL"
+    | "POST"
+    | "MEDIA";
+  const subjectId = getString(formData, "subjectId");
+  const personId = getString(formData, "personId");
+  const body = bodySchema.parse(getString(formData, "body"));
+
+  await getDb().insert(comments).values({
+    id: id("comment"),
+    subjectType,
+    subjectId,
+    authorUserId: user.id,
+    body,
+  });
+
+  await logActivity({
+    actorUserId: user.id,
+    personId: personId || undefined,
+    type: "comment.created",
+    message: `${user.name} comento.`,
+  });
+
+  if (personId) {
+    revalidatePath(`/people/${personId}`);
+  }
+  revalidatePath("/proposals");
+}
+
+export async function addProposalCommentAction(formData: FormData) {
+  const { user } = await requireUser();
+  const proposalId = getString(formData, "proposalId");
+  const body = bodySchema.parse(getString(formData, "body"));
+
+  await getDb().insert(proposalComments).values({
+    id: id("pcomment"),
+    proposalId,
+    authorUserId: user.id,
+    body,
+  });
+
+  revalidatePath("/proposals");
+}
+
+export async function voteProposalAction(formData: FormData) {
+  const { user } = await requireUser();
+  const proposalId = getString(formData, "proposalId");
+  const decision = getString(formData, "decision") === "REJECT" ? "REJECT" : "APPROVE";
+  const comment = getString(formData, "comment").trim().slice(0, 500);
+  const db = getDb();
+
+  const [proposal] = await db
+    .select()
+    .from(proposals)
+    .where(eq(proposals.id, proposalId))
+    .limit(1);
+
+  if (!proposal || proposal.status !== "PENDING") {
+    throw new Error("La propuesta ya no esta pendiente.");
+  }
+
+  await db
+    .insert(proposalVotes)
+    .values({
+      id: id("vote"),
+      proposalId,
+      userId: user.id,
+      decision,
+      comment,
+    })
+    .onConflictDoNothing();
+
+  await evaluateProposal(proposalId);
+  revalidatePath("/proposals");
+  if (proposal.targetPersonId) {
+    revalidatePath(`/people/${proposal.targetPersonId}`);
+  }
+}
+
+async function evaluateProposal(proposalId: string) {
+  const db = getDb();
+  const [proposal] = await db
+    .select()
+    .from(proposals)
+    .where(eq(proposals.id, proposalId))
+    .limit(1);
+
+  if (!proposal || proposal.status !== "PENDING") {
+    return;
+  }
+
+  const eligibleRealUsers = await getVotingThreshold();
+  const threshold = getVoteThreshold(eligibleRealUsers);
+  const [approvalCount] = await db
+    .select({ value: count() })
+    .from(proposalVotes)
+    .where(
+      and(
+        eq(proposalVotes.proposalId, proposalId),
+        eq(proposalVotes.decision, "APPROVE"),
+      ),
+    );
+  const [rejectionCount] = await db
+    .select({ value: count() })
+    .from(proposalVotes)
+    .where(
+      and(
+        eq(proposalVotes.proposalId, proposalId),
+        eq(proposalVotes.decision, "REJECT"),
+      ),
+    );
+
+  if (threshold > 0 && Number(approvalCount.value) >= threshold) {
+    await applyProposal(proposal);
+    return;
+  }
+
+  if (threshold > 0 && Number(rejectionCount.value) >= threshold) {
+    await db
+      .update(proposals)
+      .set({ status: "REJECTED", resolvedAt: new Date(), updatedAt: new Date() })
+      .where(eq(proposals.id, proposalId));
+  }
+}
+
+async function applyProposal(proposal: typeof proposals.$inferSelect) {
+  const db = getDb();
+  const payload = proposal.payload as Record<string, unknown>;
+
+  if (proposal.type === "ADD_NICKNAME" && proposal.targetPersonId) {
+    const nicknameId = id("nick");
+    const value = String(payload.value ?? "");
+    await db.insert(nicknames).values({
+      id: nicknameId,
+      personId: proposal.targetPersonId,
+      value,
+      status: "APPROVED",
+      proposedByUserId: proposal.createdByUserId,
+      approvedAt: new Date(),
+    });
+  }
+
+  if (proposal.type === "REMOVE_NICKNAME") {
+    await db
+      .update(nicknames)
+      .set({ status: "DELETED", deletedAt: new Date() })
+      .where(eq(nicknames.id, String(payload.nicknameId)));
+  }
+
+  if (proposal.type === "CREATE_FICTIONAL_PERSON") {
+    await db.insert(people).values({
+      id: id("person"),
+      kind: "FICTIONAL",
+      initialDisplayName: String(payload.displayName),
+      fullName: String(payload.fullName ?? ""),
+      createdByUserId: proposal.createdByUserId,
+    });
+  }
+
+  if (proposal.type === "ADD_IMAGE" && proposal.targetPersonId) {
+    await db.insert(mediaAssets).values({
+      id: id("media"),
+      personId: proposal.targetPersonId,
+      uploadedByUserId: proposal.createdByUserId,
+      status: "APPROVED",
+      url: String(payload.url),
+      thumbnailUrl: String(payload.thumbnailUrl),
+      pathname: String(payload.pathname),
+      thumbnailPathname: String(payload.thumbnailPathname),
+      mimeType: String(payload.mimeType),
+      sizeBytes: Number(payload.sizeBytes ?? 0),
+      width: Number(payload.width ?? 0),
+      height: Number(payload.height ?? 0),
+      altText: String(payload.altText ?? ""),
+      proposedViaProposalId: proposal.id,
+    });
+  }
+
+  if (proposal.type === "REMOVE_POST") {
+    await db
+      .update(posts)
+      .set({ deletedAt: new Date(), updatedAt: new Date() })
+      .where(eq(posts.id, String(payload.postId)));
+  }
+
+  await db
+    .update(proposals)
+    .set({
+      status: "APPLIED",
+      resolvedAt: new Date(),
+      appliedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(proposals.id, proposal.id));
+
+  await logActivity({
+    actorUserId: proposal.createdByUserId,
+    personId: proposal.targetPersonId ?? undefined,
+    type: "proposal.applied",
+    message: `Se aprobo y aplico: ${proposal.title}.`,
+  });
+}
+
+export async function toggleUserDisabledAction(formData: FormData) {
+  const { user } = await requireAdmin();
+  const userId = getString(formData, "userId");
+  const disabled = getString(formData, "disabled") === "true";
+
+  if (userId === user.id) {
+    throw new Error("No puedes desactivar tu propia cuenta.");
+  }
+
+  await getDb().update(users).set({ disabled }).where(eq(users.id, userId));
+  revalidatePath("/admin");
+}

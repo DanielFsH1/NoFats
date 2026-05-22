@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NoFats
 
-## Getting Started
+NoFats es una red social privada para un grupo de amigos: perfiles, apodos, apodo del dia, publicaciones, comentarios, fotos, propuestas y votaciones comunitarias.
 
-First, run the development server:
+## Stack
+
+- Next.js App Router, React, TypeScript y Tailwind CSS.
+- Better Auth con correo y contrasena.
+- Neon Postgres con Drizzle ORM.
+- Vercel Blob privado para imagenes.
+- Sharp para optimizacion de imagenes.
+- Vitest y Playwright para pruebas.
+
+## Desarrollo local
+
+```bash
+npm install
+cp .env.example .env.local
+npm run db:migrate
+npm run db:seed
+npm run dev
+```
+
+La app abre en [http://localhost:3000](http://localhost:3000). Crea el administrador inicial con las variables `ADMIN_*` y entra con `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
+
+## Scripts
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npm run db:generate
+npm run db:migrate
+npm run db:seed
+npm run test:e2e
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Todas las variables estan documentadas en `.env.example`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `DATABASE_URL`: conexion Neon Postgres.
+- `BETTER_AUTH_SECRET`: secreto de Better Auth.
+- `BETTER_AUTH_URL`: URL base local o de produccion.
+- `BLOB_READ_WRITE_TOKEN`: token del store Vercel Blob.
+- `CRON_SECRET`: secreto para `/api/cron/daily-nicknames`.
+- `ADMIN_*`: datos del primer administrador.
 
-## Learn More
+## Flujo de colaboracion
 
-To learn more about Next.js, take a look at the following resources:
+1. Clona el repo y crea `.env.local`.
+2. Crea una rama desde `main`: `git checkout -b feature/mi-cambio`.
+3. Corre `npm run lint`, `npm run typecheck`, `npm test` y, cuando aplique, `npm run test:e2e`.
+4. Haz commits pequenos y abre un Pull Request.
+5. Al fusionar a `main`, Vercel despliega automaticamente si el proyecto esta conectado al repo de GitHub.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Mas detalles en `CONTRIBUTING.md` y `docs/DEPLOYMENT.md`.

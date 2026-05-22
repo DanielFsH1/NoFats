@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/daily-nicknames",
+      "schedule": "5 6 * * *"
+    }
+  ]
+}
