@@ -3,7 +3,10 @@ import {
   canManagePerson,
   chooseDailyNickname,
   countEligibleRealUsers,
+  getProposalThresholds,
   getVoteThreshold,
+  mergeSiteCopy,
+  normalizeVoteSettings,
   resolveDisplayName,
 } from "./rules";
 
@@ -16,6 +19,51 @@ describe("getVoteThreshold", () => {
     expect(getVoteThreshold(5)).toBe(2);
     expect(getVoteThreshold(6)).toBe(2);
     expect(getVoteThreshold(10)).toBe(3);
+  });
+
+  it("uses configurable percentages for approval and rejection thresholds", () => {
+    expect(getVoteThreshold(10, 40)).toBe(4);
+    expect(getVoteThreshold(5, 50)).toBe(3);
+    expect(getVoteThreshold(4, 10)).toBe(1);
+    expect(getVoteThreshold(4, 0)).toBe(1);
+  });
+});
+
+describe("proposal voting settings", () => {
+  it("normalizes invalid percentage values to the default 30 percent", () => {
+    expect(
+      normalizeVoteSettings({
+        approvalPercentage: 125,
+        rejectionPercentage: Number.NaN,
+      }),
+    ).toEqual({ approvalPercentage: 30, rejectionPercentage: 30 });
+  });
+
+  it("returns separate approval and rejection thresholds", () => {
+    expect(
+      getProposalThresholds(10, {
+        approvalPercentage: 40,
+        rejectionPercentage: 20,
+      }),
+    ).toEqual({ approvalThreshold: 4, rejectionThreshold: 2 });
+  });
+});
+
+describe("mergeSiteCopy", () => {
+  it("keeps safe defaults and trims custom public copy", () => {
+    expect(
+      mergeSiteCopy({
+        appName: "  La Banda  ",
+        loginHeroTitle: "  Un titulo nuevo  ",
+        loginHeroSubtitle: "",
+        loginEyebrow: "  privado  ",
+      }),
+    ).toMatchObject({
+      appName: "La Banda",
+      loginHeroTitle: "Un titulo nuevo",
+      loginHeroSubtitle: "Apodos, votaciones, fotos y publicaciones con acceso privado.",
+      loginEyebrow: "privado",
+    });
   });
 });
 

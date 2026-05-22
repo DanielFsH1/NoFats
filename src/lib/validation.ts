@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { defaultSiteCopy } from "./product/rules";
 
 export const emailSchema = z.string().trim().email("Usa un correo valido.");
 export const passwordSchema = z
@@ -47,6 +48,58 @@ export const inviteRegistrationSchema = z
 export const imageFileSchema = z.object({
   type: z.enum(["image/jpeg", "image/png", "image/webp", "image/gif"]),
   size: z.number().max(5 * 1024 * 1024, "La imagen no puede superar 5 MB."),
+});
+
+export const voteSettingsSchema = z.object({
+  approvalPercentage: z.coerce
+    .number()
+    .int("Usa un numero entero.")
+    .min(1, "El porcentaje minimo es 1.")
+    .max(100, "El porcentaje maximo es 100."),
+  rejectionPercentage: z.coerce
+    .number()
+    .int("Usa un numero entero.")
+    .min(1, "El porcentaje minimo es 1.")
+    .max(100, "El porcentaje maximo es 100."),
+});
+
+export const siteCopySchema = z.object({
+  appName: z
+    .string()
+    .trim()
+    .min(1)
+    .max(40)
+    .default(defaultSiteCopy.appName),
+  loginEyebrow: z
+    .string()
+    .trim()
+    .min(1)
+    .max(80)
+    .default(defaultSiteCopy.loginEyebrow),
+  loginHeroTitle: z
+    .string()
+    .trim()
+    .min(1)
+    .max(120)
+    .default(defaultSiteCopy.loginHeroTitle),
+  loginHeroSubtitle: z
+    .string()
+    .trim()
+    .min(1)
+    .max(180)
+    .default(defaultSiteCopy.loginHeroSubtitle),
+  dashboardTitle: z
+    .string()
+    .trim()
+    .min(1)
+    .max(80)
+    .default(defaultSiteCopy.dashboardTitle),
+  dashboardSubtitle: z
+    .string()
+    .trim()
+    .min(1)
+    .max(220)
+    .default(defaultSiteCopy.dashboardSubtitle),
 });
 
 export function getString(formData: FormData, key: string) {

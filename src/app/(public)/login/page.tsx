@@ -1,8 +1,13 @@
 import { LoginForm } from "@/components/login-form";
+import { getAppSettings } from "@/lib/data/settings";
 import { UsersRound } from "lucide-react";
 import { Suspense } from "react";
 
-export default function LoginPage() {
+export const dynamic = "force-dynamic";
+
+export default async function LoginPage() {
+  const { siteCopy } = await getAppSettings();
+
   return (
     <main className="grid min-h-screen place-items-center px-4 py-10">
       <section className="grid w-full max-w-5xl overflow-hidden rounded-[28px] border border-[var(--border)] bg-white shadow-[var(--shadow)] lg:grid-cols-[1.1fr_0.9fr]">
@@ -11,17 +16,17 @@ export default function LoginPage() {
           <div className="relative flex h-full flex-col justify-between">
             <div className="inline-flex w-fit items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-sm font-semibold">
               <UsersRound className="size-4" aria-hidden />
-              Red social privada
+              {siteCopy.loginEyebrow}
             </div>
             <div>
               <p className="text-sm uppercase tracking-[0.22em] text-white/70">
-                NoFats
+                {siteCopy.appName}
               </p>
               <h1 className="mt-3 max-w-lg text-4xl font-black leading-tight sm:text-6xl">
-                El muro del grupo, cerrado para el grupo.
+                {siteCopy.loginHeroTitle}
               </h1>
               <p className="mt-5 max-w-md text-base leading-7 text-white/78">
-                Apodos, votaciones, fotos y publicaciones con acceso privado.
+                {siteCopy.loginHeroSubtitle}
               </p>
             </div>
           </div>

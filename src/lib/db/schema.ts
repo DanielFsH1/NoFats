@@ -36,6 +36,7 @@ export const proposalTypeEnum = pgEnum("proposal_type", [
   "ADD_IMAGE",
   "REMOVE_POST",
   "CREATE_FICTIONAL_PERSON",
+  "UPDATE_SITE_COPY",
   "GENERIC_CHANGE",
 ]);
 export const proposalStatusEnum = pgEnum("proposal_status", [
@@ -458,3 +459,12 @@ export const postMedia = pgTable(
   },
   (table) => [primaryKey({ columns: [table.postId, table.mediaId] })],
 );
+
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull().default({}),
+  updatedByUserId: text("updated_by_user_id").references(() => users.id),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});

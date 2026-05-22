@@ -22,9 +22,11 @@ const nav = [
 ];
 
 export function AppShell({
+  appName = "NoFats",
   children,
   user,
 }: {
+  appName?: string;
   children: React.ReactNode;
   user: { name: string; role: "ADMIN" | "USER" };
 }) {
@@ -34,10 +36,10 @@ export function AppShell({
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
           <Link href="/" className="flex items-center gap-3">
             <span className="grid size-11 place-items-center rounded-2xl bg-[var(--accent)] font-black text-white">
-              NF
+              {getInitials(appName)}
             </span>
             <span>
-              <span className="block text-lg font-black">NoFats</span>
+              <span className="block text-lg font-black">{appName}</span>
               <span className="block text-xs text-[var(--muted)]">
                 {formatDateTime(new Date())}
               </span>
@@ -82,6 +84,15 @@ export function AppShell({
       </main>
     </div>
   );
+}
+
+function getInitials(value: string) {
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "NF";
 }
 
 export function EmptyState({

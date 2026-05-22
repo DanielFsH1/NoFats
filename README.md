@@ -2,6 +2,8 @@
 
 NoFats es una red social privada para un grupo de amigos: perfiles, apodos, apodo del dia, publicaciones, comentarios, fotos, propuestas y votaciones comunitarias.
 
+La app tambien permite ajustar desde administracion los porcentajes de aprobacion/rechazo y cambiar los textos principales de la web. Los usuarios normales pueden proponer cambios de titulo, mensaje principal y comentarios visibles; esos cambios pasan por la misma votacion comunitaria.
+
 ## Stack
 
 - Next.js App Router, React, TypeScript y Tailwind CSS.
@@ -47,6 +49,13 @@ Todas las variables estan documentadas en `.env.example`.
 - `BLOB_READ_WRITE_TOKEN`: token del store Vercel Blob.
 - `CRON_SECRET`: secreto para `/api/cron/daily-nicknames`.
 - `ADMIN_*`: datos del primer administrador.
+
+## Configuracion dentro de la app
+
+- Admin > Umbrales de votacion: cambia el porcentaje requerido para aprobar y rechazar propuestas.
+- Admin > Textos principales: cambia directo el titulo de la web, el mensaje grande del login, el comentario pequeno y textos del inicio.
+- Votos > Proponer textos: cualquier usuario real puede enviar esos cambios a votacion.
+- Los cambios aprobados se guardan en `app_settings` y quedan auditados.
 
 ## Flujo de colaboracion
 

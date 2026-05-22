@@ -41,12 +41,109 @@ export type DailyNicknameInput = {
   nominations: DailyNicknameNomination[];
 };
 
-export function getVoteThreshold(realUserCount: number) {
+export type VoteSettings = {
+  approvalPercentage: number;
+  rejectionPercentage: number;
+};
+
+export type ProposalThresholds = {
+  approvalThreshold: number;
+  rejectionThreshold: number;
+};
+
+export type SiteCopy = {
+  appName: string;
+  loginEyebrow: string;
+  loginHeroTitle: string;
+  loginHeroSubtitle: string;
+  dashboardTitle: string;
+  dashboardSubtitle: string;
+};
+
+export const defaultVoteSettings: VoteSettings = {
+  approvalPercentage: 30,
+  rejectionPercentage: 30,
+};
+
+export const defaultSiteCopy: SiteCopy = {
+  appName: "NoFats",
+  loginEyebrow: "Red social privada",
+  loginHeroTitle: "El muro del grupo, cerrado para el grupo.",
+  loginHeroSubtitle:
+    "Apodos, votaciones, fotos y publicaciones con acceso privado.",
+  dashboardTitle: "NoFats",
+  dashboardSubtitle:
+    "Hoy hay {count} perfiles con apodo activo. Las asignaciones son estables durante el dia y se recalculan manana.",
+};
+
+export function getVoteThreshold(realUserCount: number, percentage = 30) {
   if (realUserCount <= 0) {
     return 0;
   }
 
-  return Math.max(1, Math.floor(realUserCount * 0.3 + 0.5));
+  const normalizedPercentage = normalizePercentage(percentage);
+  return Math.max(
+    1,
+    Math.floor(realUserCount * (normalizedPercentage / 100) + 0.5),
+  );
+}
+
+export function normalizeVoteSettings(
+  settings?: Partial<VoteSettings> | null,
+): VoteSettings {
+  return {
+    approvalPercentage: normalizePercentage(settings?.approvalPercentage),
+    rejectionPercentage: normalizePercentage(settings?.rejectionPercentage),
+  };
+}
+
+export function getProposalThresholds(
+  realUserCount: number,
+  settings?: Partial<VoteSettings> | null,
+): ProposalThresholds {
+  const normalized = normalizeVoteSettings(settings);
+
+  return {
+    approvalThreshold: getVoteThreshold(
+      realUserCount,
+      normalized.approvalPercentage,
+    ),
+    rejectionThreshold: getVoteThreshold(
+      realUserCount,
+      normalized.rejectionPercentage,
+    ),
+  };
+}
+
+export function mergeSiteCopy(input?: Partial<SiteCopy> | null): SiteCopy {
+  return {
+    appName: cleanWithFallback(input?.appName, defaultSiteCopy.appName, 40),
+    loginEyebrow: cleanWithFallback(
+      input?.loginEyebrow,
+      defaultSiteCopy.loginEyebrow,
+      80,
+    ),
+    loginHeroTitle: cleanWithFallback(
+      input?.loginHeroTitle,
+      defaultSiteCopy.loginHeroTitle,
+      120,
+    ),
+    loginHeroSubtitle: cleanWithFallback(
+      input?.loginHeroSubtitle,
+      defaultSiteCopy.loginHeroSubtitle,
+      180,
+    ),
+    dashboardTitle: cleanWithFallback(
+      input?.dashboardTitle,
+      defaultSiteCopy.dashboardTitle,
+      80,
+    ),
+    dashboardSubtitle: cleanWithFallback(
+      input?.dashboardSubtitle,
+      defaultSiteCopy.dashboardSubtitle,
+      220,
+    ),
+  };
 }
 
 export function countEligibleRealUsers(people: VotingPerson[]) {
@@ -136,4 +233,25 @@ export function stableHash(value: string) {
 function cleanOptional(value?: string | null) {
   const trimmed = value?.trim();
   return trimmed && trimmed.length > 0 ? trimmed : null;
+}
+
+function cleanWithFallback(value: unknown, fallback: string, maxLength: number) {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed.slice(0, maxLength) : fallback;
+}
+
+function normalizePercentage(value: unknown) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return 30;
+  }
+
+  if (value < 1 || value > 100) {
+    return 30;
+  }
+
+  return Math.round(value);
 }

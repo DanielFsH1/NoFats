@@ -4,11 +4,14 @@ import {
   createRegistrationSlotAction,
   disableRegistrationSlotAction,
   toggleUserDisabledAction,
+  updateSiteCopyAction,
+  updateVoteSettingsAction,
 } from "@/lib/actions/app-actions";
 import { getAdminOverview } from "@/lib/data/queries";
+import { getAppSettings } from "@/lib/data/settings";
 import { formatDateTime } from "@/lib/product/dates";
 import { requireAdmin } from "@/lib/session";
-import { Copy, UserPlus, UsersRound } from "lucide-react";
+import { Copy, PencilLine, SlidersHorizontal, UserPlus, UsersRound } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -18,9 +21,10 @@ export default async function AdminPage({
   searchParams: Promise<{ invite?: string }>;
 }) {
   await requireAdmin();
-  const [{ invite }, overview] = await Promise.all([
+  const [{ invite }, overview, settings] = await Promise.all([
     searchParams,
     getAdminOverview(),
+    getAppSettings(),
   ]);
 
   const metrics = [
@@ -63,6 +67,140 @@ export default async function AdminPage({
             <p className="mt-2 text-4xl font-black">{value}</p>
           </div>
         ))}
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-[0.75fr_1.25fr]">
+        <div className="surface rounded-[28px] p-6">
+          <h2 className="flex items-center gap-2 text-2xl font-black">
+            <SlidersHorizontal className="size-5" aria-hidden />
+            Umbrales de votacion
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+            Estos porcentajes controlan cuantas aprobaciones o rechazos necesita
+            cualquier propuesta sensible.
+          </p>
+          <form action={updateVoteSettingsAction} className="mt-5 space-y-4">
+            <div>
+              <label className="text-sm font-semibold" htmlFor="approvalPercentage">
+                Porcentaje para aprobar
+              </label>
+              <input
+                id="approvalPercentage"
+                name="approvalPercentage"
+                type="number"
+                min={1}
+                max={100}
+                required
+                defaultValue={settings.voteSettings.approvalPercentage}
+                className="mt-2 h-12 w-full rounded-xl border border-[var(--border)] px-3"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold" htmlFor="rejectionPercentage">
+                Porcentaje para rechazar
+              </label>
+              <input
+                id="rejectionPercentage"
+                name="rejectionPercentage"
+                type="number"
+                min={1}
+                max={100}
+                required
+                defaultValue={settings.voteSettings.rejectionPercentage}
+                className="mt-2 h-12 w-full rounded-xl border border-[var(--border)] px-3"
+              />
+            </div>
+            <SubmitButton>Guardar porcentajes</SubmitButton>
+          </form>
+        </div>
+
+        <div className="surface rounded-[28px] p-6">
+          <h2 className="flex items-center gap-2 text-2xl font-black">
+            <PencilLine className="size-5" aria-hidden />
+            Textos principales
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+            El administrador puede aplicarlos directo; los usuarios tambien
+            pueden proponer cambios desde Votos.
+          </p>
+          <form action={updateSiteCopyAction} className="mt-5 grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="text-sm font-semibold" htmlFor="adminAppName">
+                Titulo de la web
+              </label>
+              <input
+                id="adminAppName"
+                name="appName"
+                required
+                defaultValue={settings.siteCopy.appName}
+                className="mt-2 h-12 w-full rounded-xl border border-[var(--border)] px-3"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold" htmlFor="adminLoginEyebrow">
+                Etiqueta pequena
+              </label>
+              <input
+                id="adminLoginEyebrow"
+                name="loginEyebrow"
+                required
+                defaultValue={settings.siteCopy.loginEyebrow}
+                className="mt-2 h-12 w-full rounded-xl border border-[var(--border)] px-3"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-sm font-semibold" htmlFor="adminLoginHeroTitle">
+                Mensaje principal del login
+              </label>
+              <textarea
+                id="adminLoginHeroTitle"
+                name="loginHeroTitle"
+                required
+                defaultValue={settings.siteCopy.loginHeroTitle}
+                className="mt-2 min-h-24 w-full rounded-xl border border-[var(--border)] p-3"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-sm font-semibold" htmlFor="adminLoginHeroSubtitle">
+                Comentario pequeno del login
+              </label>
+              <textarea
+                id="adminLoginHeroSubtitle"
+                name="loginHeroSubtitle"
+                required
+                defaultValue={settings.siteCopy.loginHeroSubtitle}
+                className="mt-2 min-h-24 w-full rounded-xl border border-[var(--border)] p-3"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold" htmlFor="adminDashboardTitle">
+                Titulo del inicio
+              </label>
+              <input
+                id="adminDashboardTitle"
+                name="dashboardTitle"
+                required
+                defaultValue={settings.siteCopy.dashboardTitle}
+                className="mt-2 h-12 w-full rounded-xl border border-[var(--border)] px-3"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold" htmlFor="adminDashboardSubtitle">
+                Comentario del inicio
+              </label>
+              <input
+                id="adminDashboardSubtitle"
+                name="dashboardSubtitle"
+                required
+                defaultValue={settings.siteCopy.dashboardSubtitle}
+                className="mt-2 h-12 w-full rounded-xl border border-[var(--border)] px-3"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <SubmitButton>Guardar textos</SubmitButton>
+            </div>
+          </form>
+        </div>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-2">

@@ -1,5 +1,6 @@
 import { EmptyState } from "@/components/app-shell";
 import { getDashboardData } from "@/lib/data/queries";
+import { getAppSettings } from "@/lib/data/settings";
 import { formatDateTime } from "@/lib/product/dates";
 import { requireUser } from "@/lib/session";
 import {
@@ -15,7 +16,10 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   await requireUser();
-  const data = await getDashboardData();
+  const [data, { siteCopy }] = await Promise.all([
+    getDashboardData(),
+    getAppSettings(),
+  ]);
   const dailyPeople = data.people.filter((person) => person.dailyNickname);
 
   return (
@@ -27,11 +31,13 @@ export default async function DashboardPage() {
             Apodos del dia
           </div>
           <h1 className="mt-3 text-4xl font-black tracking-tight sm:text-6xl">
-            {dailyPeople[0]?.displayName ?? "NoFats"}
+            {dailyPeople[0]?.displayName ?? siteCopy.dashboardTitle}
           </h1>
           <p className="mt-4 max-w-2xl text-[var(--muted)]">
-            Hoy hay {dailyPeople.length} perfiles con apodo activo. Las
-            asignaciones son estables durante el dia y se recalculan manana.
+            {siteCopy.dashboardSubtitle.replace(
+              "{count}",
+              String(dailyPeople.length),
+            )}
           </p>
           <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {dailyPeople.slice(0, 6).map((person) => (

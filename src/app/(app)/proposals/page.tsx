@@ -3,22 +3,25 @@ import { SubmitButton } from "@/components/submit-button";
 import {
   addProposalCommentAction,
   proposeFictionalPersonAction,
+  proposeSiteCopyAction,
   voteProposalAction,
 } from "@/lib/actions/app-actions";
 import { getProposalsWithVotes, getVoteCommentList, getVotingThreshold } from "@/lib/data/queries";
-import { getVoteThreshold } from "@/lib/product/rules";
+import { getAppSettings } from "@/lib/data/settings";
+import { getProposalThresholds } from "@/lib/product/rules";
 import { requireUser } from "@/lib/session";
-import { Check, MessageCircle, Plus, X } from "lucide-react";
+import { Check, MessageCircle, PencilLine, Plus, X } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProposalsPage() {
   await requireUser();
-  const [proposals, eligibleUsers] = await Promise.all([
+  const [proposals, eligibleUsers, settings] = await Promise.all([
     getProposalsWithVotes(),
     getVotingThreshold(),
+    getAppSettings(),
   ]);
-  const threshold = getVoteThreshold(eligibleUsers);
+  const thresholds = getProposalThresholds(eligibleUsers, settings.voteSettings);
   const proposalCards = await Promise.all(
     proposals.map(async (proposal) => ({
       proposal,
@@ -32,29 +35,113 @@ export default async function ProposalsPage() {
         <div>
           <h1 className="text-4xl font-black">Propuestas y votaciones</h1>
           <p className="mt-2 text-[var(--muted)]">
-            Umbral actual: {threshold} voto(s) de {eligibleUsers} usuarios reales activos.
+            Umbral actual: {thresholds.approvalThreshold} aprobacion(es) al{" "}
+            {settings.voteSettings.approvalPercentage}% y{" "}
+            {thresholds.rejectionThreshold} rechazo(s) al{" "}
+            {settings.voteSettings.rejectionPercentage}% de {eligibleUsers} usuarios
+            reales activos.
           </p>
         </div>
-        <section className="surface rounded-[24px] p-5">
-          <h2 className="flex items-center gap-2 text-lg font-black">
-            <Plus className="size-5" aria-hidden />
-            Proponer perfil
-          </h2>
-          <form action={proposeFictionalPersonAction} className="mt-4 space-y-3">
-            <input
-              name="displayName"
-              required
-              placeholder="Nombre visible"
-              className="h-11 w-full rounded-xl border border-[var(--border)] px-3"
-            />
-            <input
-              name="fullName"
-              placeholder="Descripcion opcional"
-              className="h-11 w-full rounded-xl border border-[var(--border)] px-3"
-            />
-            <SubmitButton>Proponer</SubmitButton>
-          </form>
-        </section>
+        <div className="space-y-4">
+          <section className="surface rounded-[24px] p-5">
+            <h2 className="flex items-center gap-2 text-lg font-black">
+              <Plus className="size-5" aria-hidden />
+              Proponer perfil
+            </h2>
+            <form action={proposeFictionalPersonAction} className="mt-4 space-y-3">
+              <label className="block text-sm font-semibold" htmlFor="displayName">
+                Nombre visible
+              </label>
+              <input
+                id="displayName"
+                name="displayName"
+                required
+                placeholder="Nombre visible"
+                className="h-11 w-full rounded-xl border border-[var(--border)] px-3"
+              />
+              <label className="block text-sm font-semibold" htmlFor="fullName">
+                Descripcion opcional
+              </label>
+              <input
+                id="fullName"
+                name="fullName"
+                placeholder="Descripcion opcional"
+                className="h-11 w-full rounded-xl border border-[var(--border)] px-3"
+              />
+              <SubmitButton>Proponer</SubmitButton>
+            </form>
+          </section>
+
+          <section className="surface rounded-[24px] p-5">
+            <h2 className="flex items-center gap-2 text-lg font-black">
+              <PencilLine className="size-5" aria-hidden />
+              Proponer textos
+            </h2>
+            <form action={proposeSiteCopyAction} className="mt-4 space-y-3">
+              <label className="block text-sm font-semibold" htmlFor="appName">
+                Titulo de la web
+              </label>
+              <input
+                id="appName"
+                name="appName"
+                required
+                defaultValue={settings.siteCopy.appName}
+                className="h-11 w-full rounded-xl border border-[var(--border)] px-3"
+              />
+              <label className="block text-sm font-semibold" htmlFor="loginEyebrow">
+                Etiqueta pequena del login
+              </label>
+              <input
+                id="loginEyebrow"
+                name="loginEyebrow"
+                required
+                defaultValue={settings.siteCopy.loginEyebrow}
+                className="h-11 w-full rounded-xl border border-[var(--border)] px-3"
+              />
+              <label className="block text-sm font-semibold" htmlFor="loginHeroTitle">
+                Mensaje principal del login
+              </label>
+              <textarea
+                id="loginHeroTitle"
+                name="loginHeroTitle"
+                required
+                defaultValue={settings.siteCopy.loginHeroTitle}
+                className="min-h-20 w-full rounded-xl border border-[var(--border)] p-3"
+              />
+              <label className="block text-sm font-semibold" htmlFor="loginHeroSubtitle">
+                Comentario pequeno
+              </label>
+              <textarea
+                id="loginHeroSubtitle"
+                name="loginHeroSubtitle"
+                required
+                defaultValue={settings.siteCopy.loginHeroSubtitle}
+                className="min-h-20 w-full rounded-xl border border-[var(--border)] p-3"
+              />
+              <label className="block text-sm font-semibold" htmlFor="dashboardTitle">
+                Titulo del inicio
+              </label>
+              <input
+                id="dashboardTitle"
+                name="dashboardTitle"
+                required
+                defaultValue={settings.siteCopy.dashboardTitle}
+                className="h-11 w-full rounded-xl border border-[var(--border)] px-3"
+              />
+              <label className="block text-sm font-semibold" htmlFor="dashboardSubtitle">
+                Comentario del inicio
+              </label>
+              <textarea
+                id="dashboardSubtitle"
+                name="dashboardSubtitle"
+                required
+                defaultValue={settings.siteCopy.dashboardSubtitle}
+                className="min-h-20 w-full rounded-xl border border-[var(--border)] p-3"
+              />
+              <SubmitButton variant="secondary">Enviar a votacion</SubmitButton>
+            </form>
+          </section>
+        </div>
       </div>
 
       <section className="space-y-4">
@@ -88,7 +175,8 @@ export default async function ProposalsPage() {
                     </div>
                   </div>
                   <p className="mt-3 rounded-xl bg-[var(--surface-strong)] p-2 text-center text-xs font-semibold">
-                    Se necesitan {threshold}
+                    Se necesitan {thresholds.approvalThreshold} para aprobar o{" "}
+                    {thresholds.rejectionThreshold} para rechazar
                   </p>
                 </div>
               </div>

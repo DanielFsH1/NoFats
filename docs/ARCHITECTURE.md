@@ -21,13 +21,17 @@ La tabla `people` representa tanto usuarios reales como perfiles no reales. `kin
 
 ## Votaciones
 
-Todas las propuestas sensibles usan `proposals` y `proposal_votes`. El umbral es:
+Todas las propuestas sensibles usan `proposals` y `proposal_votes`. Los porcentajes se guardan en `app_settings` y se pueden cambiar desde el panel admin. El umbral por defecto sigue siendo 30%:
 
 ```ts
-Math.max(1, Math.floor(realUserCount * 0.3 + 0.5))
+Math.max(1, Math.floor(realUserCount * (percentage / 100) + 0.5))
 ```
 
 El creador puede votar y cada usuario real activo vota una sola vez por propuesta.
+
+## Textos configurables
+
+`app_settings` guarda `site_copy` y `voting`. Admin puede aplicar cambios directos y cualquier usuario real puede proponer `UPDATE_SITE_COPY`; al aprobarse, se actualizan titulo, login, comentario pequeno y textos principales del inicio. Estos cambios dejan actividad y auditoria.
 
 ## Apodo del dia
 

@@ -8,6 +8,13 @@
       "when": 1779420220741,
       "tag": "0000_lonely_dagger",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1779422336999,
+      "tag": "0001_cuddly_gauntlet",
+      "breakpoints": true
     }
   ]
 }

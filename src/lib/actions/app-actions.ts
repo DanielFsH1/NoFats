@@ -17,12 +17,25 @@ import {
   users,
 } from "@/lib/db/schema";
 import { getVotingThreshold } from "@/lib/data/queries";
+import { getAppSettings, saveSiteCopy, saveVoteSettings } from "@/lib/data/settings";
 import { id } from "@/lib/ids";
 import { getTomorrowDateKey } from "@/lib/product/dates";
-import { canManagePerson, getVoteThreshold } from "@/lib/product/rules";
+import {
+  canManagePerson,
+  getProposalThresholds,
+  mergeSiteCopy,
+  normalizeVoteSettings,
+} from "@/lib/product/rules";
 import { createInviteToken, hashInviteToken } from "@/lib/security/token";
 import { requireAdmin, requireUser } from "@/lib/session";
-import { bodySchema, getString, profileSchema, shortTextSchema } from "@/lib/validation";
+import {
+  bodySchema,
+  getString,
+  profileSchema,
+  shortTextSchema,
+  siteCopySchema,
+  voteSettingsSchema,
+} from "@/lib/validation";
 import { and, count, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -154,6 +167,97 @@ export async function proposeFictionalPersonAction(formData: FormData) {
     message: `${user.name} propuso crear ${displayName}.`,
   });
 
+  revalidatePath("/proposals");
+}
+
+export async function proposeSiteCopyAction(formData: FormData) {
+  const { user } = await requireUser();
+  const copy = siteCopySchema.parse({
+    appName: getString(formData, "appName"),
+    loginEyebrow: getString(formData, "loginEyebrow"),
+    loginHeroTitle: getString(formData, "loginHeroTitle"),
+    loginHeroSubtitle: getString(formData, "loginHeroSubtitle"),
+    dashboardTitle: getString(formData, "dashboardTitle"),
+    dashboardSubtitle: getString(formData, "dashboardSubtitle"),
+  });
+
+  await getDb().insert(proposals).values({
+    id: id("proposal"),
+    type: "UPDATE_SITE_COPY",
+    status: "PENDING",
+    createdByUserId: user.id,
+    title: `${user.name} propone cambiar textos de la web`,
+    summary: copy.loginHeroTitle,
+    payload: { siteCopy: copy },
+  });
+
+  await logActivity({
+    actorUserId: user.id,
+    type: "proposal.created",
+    message: `${user.name} propuso nuevos textos para la web.`,
+  });
+
+  revalidatePath("/proposals");
+}
+
+export async function updateSiteCopyAction(formData: FormData) {
+  const { user } = await requireAdmin();
+  const before = await getAppSettings();
+  const copy = siteCopySchema.parse({
+    appName: getString(formData, "appName"),
+    loginEyebrow: getString(formData, "loginEyebrow"),
+    loginHeroTitle: getString(formData, "loginHeroTitle"),
+    loginHeroSubtitle: getString(formData, "loginHeroSubtitle"),
+    dashboardTitle: getString(formData, "dashboardTitle"),
+    dashboardSubtitle: getString(formData, "dashboardSubtitle"),
+  });
+
+  await saveSiteCopy(copy, user.id);
+  await audit({
+    actorUserId: user.id,
+    entityType: "app_setting",
+    entityId: "site_copy",
+    action: "settings.site_copy_updated",
+    before: before.siteCopy,
+    after: copy,
+  });
+  await logActivity({
+    actorUserId: user.id,
+    type: "settings.site_copy_updated",
+    message: `${user.name} actualizo los textos principales de la web.`,
+  });
+
+  revalidatePath("/");
+  revalidatePath("/login");
+  revalidatePath("/admin");
+}
+
+export async function updateVoteSettingsAction(formData: FormData) {
+  const { user } = await requireAdmin();
+  const before = await getAppSettings();
+  const settings = normalizeVoteSettings(
+    voteSettingsSchema.parse({
+      approvalPercentage: getString(formData, "approvalPercentage"),
+      rejectionPercentage: getString(formData, "rejectionPercentage"),
+    }),
+  );
+
+  await saveVoteSettings(settings, user.id);
+  await audit({
+    actorUserId: user.id,
+    entityType: "app_setting",
+    entityId: "voting",
+    action: "settings.voting_updated",
+    before: before.voteSettings,
+    after: settings,
+  });
+  await logActivity({
+    actorUserId: user.id,
+    type: "settings.voting_updated",
+    message: `${user.name} cambio los umbrales a ${settings.approvalPercentage}% / ${settings.rejectionPercentage}%.`,
+  });
+
+  revalidatePath("/admin");
   revalidatePath("/proposals");
 }
 
@@ -502,7 +606,11 @@ async function evaluateProposal(proposalId: string) {
   }
 
   const eligibleRealUsers = await getVotingThreshold();
-  const threshold = getVoteThreshold(eligibleRealUsers);
+  const { voteSettings } = await getAppSettings();
+  const { approvalThreshold, rejectionThreshold } = getProposalThresholds(
+    eligibleRealUsers,
+    voteSettings,
+  );
   const [approvalCount] = await db
     .select({ value: count() })
     .from(proposalVotes)
@@ -522,12 +630,12 @@ async function evaluateProposal(proposalId: string) {
       ),
     );
 
-  if (threshold > 0 && Number(approvalCount.value) >= threshold) {
+  if (approvalThreshold > 0 && Number(approvalCount.value) >= approvalThreshold) {
     await applyProposal(proposal);
     return;
   }
 
-  if (threshold > 0 && Number(rejectionCount.value) >= threshold) {
+  if (rejectionThreshold > 0 && Number(rejectionCount.value) >= rejectionThreshold) {
     await db
       .update(proposals)
       .set({ status: "REJECTED", resolvedAt: new Date(), updatedAt: new Date() })
@@ -567,6 +675,23 @@ async function applyProposal(proposal: typeof proposals.$inferSelect) {
       fullName: String(payload.fullName ?? ""),
       createdByUserId: proposal.createdByUserId,
     });
+  }
+
+  if (proposal.type === "UPDATE_SITE_COPY") {
+    const before = await getAppSettings();
+    const siteCopy = mergeSiteCopy(payload.siteCopy as Record<string, string>);
+    await saveSiteCopy(siteCopy, proposal.createdByUserId);
+    await audit({
+      actorUserId: proposal.createdByUserId,
+      entityType: "app_setting",
+      entityId: "site_copy",
+      action: "proposal.site_copy_applied",
+      before: before.siteCopy,
+      after: siteCopy,
+    });
+    revalidatePath("/");
+    revalidatePath("/login");
+    revalidatePath("/admin");
   }
 
   if (proposal.type === "ADD_IMAGE" && proposal.targetPersonId) {

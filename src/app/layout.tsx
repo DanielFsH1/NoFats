@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { getAppSettings } from "@/lib/data/settings";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,10 +13,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "NoFats",
-  description: "Red social privada para el grupo.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { siteCopy } = await getAppSettings();
+
+  return {
+    title: siteCopy.appName,
+    description: siteCopy.loginHeroSubtitle,
+  };
+}
 
 export default function RootLayout({
   children,
