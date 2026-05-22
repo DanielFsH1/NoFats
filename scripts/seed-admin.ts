@@ -73,6 +73,7 @@ async function main() {
   }
 
   console.log(`Admin ready: ${email}`);
+  await (db as { $client?: { close?: () => Promise<void> } }).$client?.close?.();
 }
 
 main().catch((error) => {

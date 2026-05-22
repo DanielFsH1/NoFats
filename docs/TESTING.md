@@ -29,6 +29,18 @@ set PLAYWRIGHT_BASE_URL=https://tu-app.vercel.app
 npm run test:e2e
 ```
 
+## QA local con datos reales
+
+Si no tienes `DATABASE_URL` de Neon, configura `PGLITE_DATA_DIR="./.data/pglite"` en `.env.local` y prepara una base local embebida:
+
+```bash
+npm run db:migrate:local
+npm run db:seed
+npm run dev
+```
+
+Con eso puedes entrar con el admin definido en `ADMIN_EMAIL` / `ADMIN_PASSWORD`, crear cupos, registrar usuarios de prueba y recorrer la app en navegador.
+
 ## Checklist manual recomendado
 
 - Registro por invitacion y uso unico del cupo.

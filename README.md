@@ -25,6 +25,15 @@ npm run dev
 
 La app abre en [http://localhost:3000](http://localhost:3000). Crea el administrador inicial con las variables `ADMIN_*` y entra con `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
 
+Si no tienes Neon configurado localmente, puedes usar la base embebida de QA:
+
+```bash
+# en .env.local deja PGLITE_DATA_DIR="./.data/pglite" y no definas DATABASE_URL
+npm run db:migrate:local
+npm run db:seed
+npm run dev
+```
+
 ## Scripts
 
 ```bash
@@ -35,6 +44,7 @@ npm test
 npm run build
 npm run db:generate
 npm run db:migrate
+npm run db:migrate:local
 npm run db:seed
 npm run test:e2e
 ```
@@ -44,6 +54,7 @@ npm run test:e2e
 Todas las variables estan documentadas en `.env.example`.
 
 - `DATABASE_URL`: conexion Neon Postgres.
+- `PGLITE_DATA_DIR`: base local embebida opcional para QA sin Neon.
 - `BETTER_AUTH_SECRET`: secreto de Better Auth.
 - `BETTER_AUTH_URL`: URL base local o de produccion.
 - `BLOB_READ_WRITE_TOKEN`: token del store Vercel Blob.

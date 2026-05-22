@@ -12,6 +12,12 @@ npm run db:seed
 npm run dev
 ```
 
+Para pruebas locales sin Neon, usa `PGLITE_DATA_DIR="./.data/pglite"` en `.env.local` y cambia el paso de migracion por:
+
+```bash
+npm run db:migrate:local
+```
+
 ## Flujo Git
 
 - `main` es la rama estable y despliega a produccion.

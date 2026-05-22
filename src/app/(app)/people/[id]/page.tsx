@@ -93,6 +93,7 @@ export default async function PersonPage({
               <input type="hidden" name="personId" value={profile.person.id} />
               <textarea
                 name="body"
+                aria-label="Publica algo breve"
                 required
                 placeholder="Publica algo breve..."
                 className="min-h-28 w-full rounded-2xl border border-[var(--border)] bg-white p-4"
@@ -130,6 +131,7 @@ export default async function PersonPage({
                       <input type="hidden" name="parentPostId" value={post.id} />
                       <input
                         name="body"
+                        aria-label="Responder"
                         required
                         placeholder="Responder..."
                         className="h-10 min-w-0 flex-1 rounded-xl border border-[var(--border)] px-3 text-sm"
@@ -153,6 +155,7 @@ export default async function PersonPage({
               <input type="hidden" name="personId" value={profile.person.id} />
               <input
                 name="body"
+                aria-label="Comentar"
                 required
                 placeholder="Comentar..."
                 className="h-11 min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-white px-3"
@@ -180,24 +183,28 @@ export default async function PersonPage({
                 <input type="hidden" name="personId" value={profile.person.id} />
                 <input
                   name="fullName"
+                  aria-label="Nombre completo o descriptivo"
                   defaultValue={profile.person.fullName ?? ""}
                   placeholder="Nombre completo o descriptivo"
                   className="h-11 w-full rounded-xl border border-[var(--border)] px-3"
                 />
                 <input
                   name="bio"
+                  aria-label="Bio corta"
                   defaultValue={profile.person.bio}
                   placeholder="Bio corta"
                   className="h-11 w-full rounded-xl border border-[var(--border)] px-3"
                 />
                 <textarea
                   name="description"
+                  aria-label="Descripcion"
                   defaultValue={profile.person.description}
                   placeholder="Descripcion"
                   className="min-h-24 w-full rounded-xl border border-[var(--border)] p-3"
                 />
                 <input
                   name="phrase"
+                  aria-label="Frase personal"
                   defaultValue={profile.person.phrase}
                   placeholder="Frase personal"
                   className="h-11 w-full rounded-xl border border-[var(--border)] px-3"
@@ -225,6 +232,7 @@ export default async function PersonPage({
               <input type="hidden" name="personId" value={profile.person.id} />
               <input
                 name="nickname"
+                aria-label="Nuevo apodo"
                 required
                 placeholder="Nuevo apodo"
                 className="h-11 min-w-0 flex-1 rounded-xl border border-[var(--border)] px-3"
@@ -278,6 +286,7 @@ export default async function PersonPage({
               />
               <input
                 name="altText"
+                aria-label="Descripcion breve"
                 placeholder="Descripcion breve"
                 className="h-11 w-full rounded-xl border border-[var(--border)] px-3"
               />

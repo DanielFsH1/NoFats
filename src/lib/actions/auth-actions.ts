@@ -12,7 +12,12 @@ import {
 } from "@/lib/db/schema";
 import { id } from "@/lib/ids";
 import { hashInviteToken } from "@/lib/security/token";
-import { inviteRegistrationSchema, getString } from "@/lib/validation";
+import {
+  emailSchema,
+  getString,
+  inviteRegistrationSchema,
+  passwordSchema,
+} from "@/lib/validation";
 import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -21,6 +26,43 @@ export type FormState = {
   ok?: boolean;
   message?: string;
 };
+
+function safeNextPath(value: string) {
+  if (!value.startsWith("/") || value.startsWith("//")) {
+    return "/";
+  }
+
+  return value;
+}
+
+export async function signInWithPasswordAction(
+  _state: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const parsedEmail = emailSchema.safeParse(getString(formData, "email"));
+  const parsedPassword = passwordSchema.safeParse(getString(formData, "password"));
+  const next = safeNextPath(getString(formData, "next") || "/");
+
+  if (!parsedEmail.success || !parsedPassword.success) {
+    return { message: "Correo o contrasena invalidos." };
+  }
+
+  try {
+    await auth.api.signInEmail({
+      body: {
+        email: parsedEmail.data,
+        password: parsedPassword.data,
+        callbackURL: next,
+        rememberMe: true,
+      },
+      headers: await headers(),
+    });
+  } catch {
+    return { message: "No pudimos iniciar sesion con esos datos." };
+  }
+
+  redirect(next);
+}
 
 export async function registerWithInvite(
   _state: FormState,
