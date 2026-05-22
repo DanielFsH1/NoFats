@@ -28,6 +28,7 @@ import {
 } from "@/lib/product/rules";
 import { createInviteToken, hashInviteToken } from "@/lib/security/token";
 import { requireAdmin, requireUser } from "@/lib/session";
+import { getBaseUrl } from "@/lib/urls";
 import {
   bodySchema,
   getString,
@@ -41,7 +42,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 function appUrl() {
-  return process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
+  return getBaseUrl();
 }
 
 async function logActivity(input: {

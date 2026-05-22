@@ -3,12 +3,13 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { getOptionalDb } from "./db";
 import * as schema from "./db/schema";
+import { getBaseUrl } from "./urls";
 
 const db = getOptionalDb();
 
 export const auth = betterAuth({
   appName: "NoFats",
-  baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+  baseURL: getBaseUrl(),
   secret:
     process.env.BETTER_AUTH_SECRET ??
     "local-build-placeholder-change-me-before-production",
