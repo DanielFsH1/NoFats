@@ -2,7 +2,13 @@
 
 import { put } from "@vercel/blob";
 import { getDb } from "@/lib/db";
-import { mediaAssets, people, proposals } from "@/lib/db/schema";
+import {
+  activityEvents,
+  auditLogs,
+  mediaAssets,
+  people,
+  proposals,
+} from "@/lib/db/schema";
 import { id } from "@/lib/ids";
 import { canAddOwnProfileContentDirectly } from "@/lib/product/rules";
 import { requireUser } from "@/lib/session";
@@ -58,8 +64,8 @@ export async function uploadImageAction(formData: FormData) {
   ]);
 
   const canDirectlyEdit = canAddOwnProfileContentDirectly({
-    actorId: user.id,
-    targetUserId: target.userId,
+    actor: { id: user.id, role: user.role },
+    target: { kind: target.kind, userId: target.userId },
   });
 
   if (canDirectlyEdit) {
@@ -77,6 +83,23 @@ export async function uploadImageAction(formData: FormData) {
       width: metadata.width,
       height: metadata.height,
       altText,
+    });
+
+    await db.insert(auditLogs).values({
+      id: id("audit"),
+      actorUserId: user.id,
+      entityType: "media_asset",
+      entityId: mediaId,
+      action: "media.added_directly",
+      after: { personId, targetKind: target.kind, altText },
+    });
+
+    await db.insert(activityEvents).values({
+      id: id("act"),
+      actorUserId: user.id,
+      personId,
+      type: "media.added",
+      message: `${user.name} subio una foto.`,
     });
   } else {
     await db.insert(proposals).values({

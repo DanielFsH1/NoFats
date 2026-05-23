@@ -153,7 +153,7 @@ export default async function DashboardPage() {
               >
                 {person.pendingProposalCount > 0 ? (
                   <span
-                    className="absolute right-3 top-3 z-10 grid min-h-6 min-w-6 place-items-center rounded-full bg-[var(--danger)] px-2 text-xs font-black text-white shadow-[var(--shadow-soft)]"
+                    className="absolute right-3 top-3 z-10 grid min-h-6 min-w-6 place-items-center rounded-full bg-[var(--danger)] px-2 text-xs font-black text-[var(--danger-contrast)] shadow-[var(--shadow-soft)]"
                     aria-label={`${person.pendingProposalCount} pendientes por aprobar`}
                   >
                     {person.pendingProposalCount}

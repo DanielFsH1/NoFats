@@ -14,7 +14,7 @@ export default function Error({
         <p className="mt-3 text-sm text-[var(--muted)]">{error.message}</p>
         <button
           onClick={reset}
-          className="mt-6 h-11 rounded-xl bg-[var(--accent)] px-4 font-semibold text-white"
+          className="mt-6 h-11 rounded-xl bg-[var(--accent)] px-4 font-semibold text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]"
         >
           Intentar otra vez
         </button>

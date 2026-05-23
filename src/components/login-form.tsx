@@ -55,7 +55,7 @@ function LoginButton() {
   return (
     <button
       disabled={pending}
-      className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 font-semibold text-white transition hover:bg-[var(--accent-ink)] disabled:bg-slate-400"
+      className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 font-semibold text-[var(--accent-contrast)] transition hover:bg-[var(--accent-hover)] disabled:bg-slate-400 disabled:text-white"
     >
       {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
       Entrar

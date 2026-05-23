@@ -53,7 +53,7 @@ export function NicknameProposalList({
   }
 
   return (
-    <div className="max-h-[22rem] space-y-2 overflow-y-auto pr-1 sm:max-h-[30rem]">
+    <div className="space-y-2">
       {proposals.map((proposal) => {
         const payload = proposal.payload as {
           value?: unknown;
@@ -75,6 +75,7 @@ export function NicknameProposalList({
         return (
           <details
             key={proposal.id}
+            name="nickname-proposals"
             className="group rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3"
           >
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3">

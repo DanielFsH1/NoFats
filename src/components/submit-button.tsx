@@ -15,10 +15,11 @@ export function SubmitButton({
   const { pending } = useFormStatus();
   const classes = {
     primary:
-      "bg-[var(--accent)] text-white hover:bg-[var(--accent-ink)] disabled:bg-slate-400",
+      "bg-[var(--accent)] text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)] disabled:bg-slate-400 disabled:text-white",
     secondary:
       "border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-strong)]",
-    danger: "bg-[var(--danger)] text-white hover:bg-red-800",
+    danger:
+      "bg-[var(--danger)] text-[var(--danger-contrast)] hover:bg-[var(--danger-hover)]",
   };
 
   return (

@@ -10,7 +10,7 @@ export default function NotFound() {
         </p>
         <Link
           href="/"
-          className="mt-6 inline-flex h-11 items-center rounded-xl bg-[var(--accent)] px-4 font-semibold text-white"
+          className="mt-6 inline-flex h-11 items-center rounded-xl bg-[var(--accent)] px-4 font-semibold text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]"
         >
           Volver al inicio
         </Link>

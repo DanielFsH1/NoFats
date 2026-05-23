@@ -15,7 +15,7 @@ export default async function LoginPage() {
         <ThemeToggle />
       </div>
       <section className="grid w-full max-w-5xl overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow)] lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="relative min-h-[420px] bg-[var(--accent-ink)] p-8 text-white sm:p-10">
+        <div className="relative min-h-[420px] bg-[#073a33] p-8 text-white sm:p-10">
           <div className="absolute inset-0 opacity-45 [background:radial-gradient(circle_at_20%_20%,#5dd1b5_0%,transparent_26%),linear-gradient(135deg,#073a33_0%,#2b6f98_48%,#d85f49_100%)]" />
           <div className="relative flex h-full flex-col justify-between">
             <div className="inline-flex w-fit items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-sm font-semibold">

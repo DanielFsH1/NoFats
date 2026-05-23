@@ -17,6 +17,7 @@ import {
   users,
 } from "@/lib/db/schema";
 import { getVotingThreshold } from "@/lib/data/queries";
+import { deleteImageProposalBlobs } from "@/lib/data/media-cleanup";
 import { rejectExpiredProposals } from "@/lib/data/proposal-expiration";
 import {
   getAppSettings,
@@ -25,10 +26,10 @@ import {
 } from "@/lib/data/settings";
 import { id } from "@/lib/ids";
 import { getTomorrowDateKey } from "@/lib/product/dates";
+import { getProposalVoteReadiness } from "@/lib/product/proposal-voting";
 import {
   canAddNicknameDirectly,
   canManagePerson,
-  canVoteOnProposal,
   getProposalThresholds,
   hasDuplicateNicknameValue,
   mergeSiteCopy,
@@ -36,7 +37,6 @@ import {
   normalizeVoteSettings,
   shouldReplacePrimaryNickname,
 } from "@/lib/product/rules";
-import { isProposalExpired } from "@/lib/product/proposal-expiration";
 import { createInviteToken, hashInviteToken } from "@/lib/security/token";
 import { requireAdmin, requireUser } from "@/lib/session";
 import { getBaseUrl } from "@/lib/urls";
@@ -533,8 +533,8 @@ export async function addNicknameAction(formData: FormData) {
   await assertNicknameIsUnique(personId, value);
 
   const canDirectlyEdit = canAddNicknameDirectly({
-    actorId: user.id,
-    targetUserId: target.userId,
+    actor: { id: user.id, role: user.role },
+    target: { kind: target.kind, userId: target.userId },
   });
 
   if (canDirectlyEdit) {
@@ -549,6 +549,14 @@ export async function addNicknameAction(formData: FormData) {
     });
 
     await promoteApprovedNicknameIfNeeded(target, nicknameId);
+
+    await audit({
+      actorUserId: user.id,
+      entityType: "nickname",
+      entityId: nicknameId,
+      action: "nickname.added_directly",
+      after: { personId, value, targetKind: target.kind },
+    });
 
     await logActivity({
       actorUserId: user.id,
@@ -636,7 +644,16 @@ export async function nominateDailyNicknameAction(formData: FormData) {
     })
     .onConflictDoNothing();
 
+  await logActivity({
+    actorUserId: user.id,
+    personId,
+    type: "daily_nickname.nominated",
+    message: `${user.name} postulo un apodo para el dia siguiente.`,
+    metadata: { nicknameId },
+  });
+
   revalidatePath(`/people/${personId}`);
+  revalidatePath("/");
 }
 
 export async function createPostAction(formData: FormData) {
@@ -784,11 +801,20 @@ export async function voteProposalAction(formData: FormData) {
     .where(eq(proposals.id, proposalId))
     .limit(1);
 
-  if (!proposal || proposal.status !== "PENDING") {
+  if (!proposal) {
     throw new Error("La propuesta ya no esta pendiente.");
   }
 
-  if (isProposalExpired(proposal.createdAt)) {
+  const readiness = getProposalVoteReadiness({
+    actorId: user.id,
+    proposal,
+  });
+
+  if (!readiness.ok && readiness.reason === "settled") {
+    throw new Error("La propuesta ya no esta pendiente.");
+  }
+
+  if (!readiness.ok && readiness.reason === "expired") {
     await db
       .update(proposals)
       .set({
@@ -797,16 +823,13 @@ export async function voteProposalAction(formData: FormData) {
         updatedAt: new Date(),
       })
       .where(eq(proposals.id, proposalId));
+    if (proposal.type === "ADD_IMAGE") {
+      await deleteImageProposalBlobs(proposal.payload);
+    }
     throw new Error("Esta propuesta expiro despues de 48 horas.");
   }
 
-  if (
-    !canVoteOnProposal({
-      actorId: user.id,
-      proposalCreatorId: proposal.createdByUserId,
-      proposalType: proposal.type,
-    })
-  ) {
+  if (!readiness.ok && readiness.reason === "self_vote_blocked") {
     throw new Error("Otra persona debe aprobar esta propuesta.");
   }
 
@@ -893,6 +916,9 @@ async function evaluateProposal(proposalId: string) {
         updatedAt: new Date(),
       })
       .where(eq(proposals.id, proposalId));
+    if (proposal.type === "ADD_IMAGE") {
+      await deleteImageProposalBlobs(proposal.payload);
+    }
   }
 }
 

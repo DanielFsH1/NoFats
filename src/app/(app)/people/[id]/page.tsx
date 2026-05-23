@@ -1,4 +1,5 @@
 import { EmptyState } from "@/components/app-shell";
+import { ExpandablePanel } from "@/components/expandable-panel";
 import { ImageUploadForm } from "@/components/image-upload-form";
 import { MediaLightbox } from "@/components/media-lightbox";
 import { NicknameList } from "@/components/nickname-list";
@@ -54,6 +55,7 @@ export default async function PersonPage({
   ]);
   const profile = await getPersonProfile(id, {
     includeAdminProfiles: user.role === "ADMIN",
+    currentUserId: user.id,
   });
 
   if (!profile) {
@@ -93,8 +95,10 @@ export default async function PersonPage({
     "--surface-muted": profileTheme.surfaceMuted,
     "--surface-strong": profileTheme.surfaceStrong,
     "--border": profileTheme.border,
-    "--accent": profileTheme.ring,
+    "--accent": profileTheme.accent,
     "--accent-ink": profileTheme.accentInk,
+    "--accent-contrast": profileTheme.accentContrast,
+    "--accent-hover": profileTheme.accentHover,
     "--shadow": profileTheme.shadow,
     "--shadow-soft": profileTheme.shadowSoft,
   } as CSSProperties;
@@ -109,7 +113,7 @@ export default async function PersonPage({
         style={{ background: profileTheme.page }}
       />
       <div
-        className="pointer-events-none absolute inset-0 z-0 opacity-75 mix-blend-soft-light"
+        className="pointer-events-none absolute inset-0 z-0 opacity-25 mix-blend-soft-light"
         style={{ background: profileTheme.banner }}
       />
       <div className="relative z-10 mx-auto max-w-6xl space-y-6">
@@ -118,7 +122,7 @@ export default async function PersonPage({
           style={{
             background: profileTheme.surface,
             color: profileTheme.text,
-            borderColor: profileTheme.ring,
+            borderColor: profileTheme.border,
           }}
         >
           <div
@@ -175,7 +179,7 @@ export default async function PersonPage({
                 className="rounded-3xl border border-[var(--border)] p-5"
                 style={{
                   background: profileTheme.panel,
-                  borderColor: profileTheme.ring,
+                  borderColor: profileTheme.border,
                 }}
               >
                 <p
@@ -229,36 +233,32 @@ export default async function PersonPage({
           </div>
 
           <div className="mt-5 grid min-h-0 gap-4 xl:grid-cols-2">
-            <div className="min-w-0 rounded-3xl border border-[var(--border)] bg-[var(--surface-muted)] p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <h3 className="text-sm font-black uppercase text-[var(--muted)]">
-                  Apodos aprobados
-                </h3>
-                <span className="rounded-full bg-[var(--surface-strong)] px-2 py-1 text-xs font-black text-[var(--muted)]">
-                  {approvedNicknames.length}
-                </span>
-              </div>
+            <ExpandablePanel
+              title="Apodos aprobados"
+              count={approvedNicknames.length}
+              openLabel="Ver apodos"
+            >
               <NicknameList
                 nicknames={approvedNicknames.map((nickname) => ({
                   id: nickname.id,
                   value: nickname.value,
                   status: nickname.status,
+                  tomorrowNominationCount:
+                    nickname.tomorrowNominationCount,
+                  nominatedByCurrentUserForTomorrow:
+                    nickname.nominatedByCurrentUserForTomorrow,
                 }))}
                 personId={profile.person.id}
                 nominateAction={nominateDailyNicknameAction}
                 removeAction={removeNicknameAction}
               />
-            </div>
+            </ExpandablePanel>
 
-            <div className="min-w-0 rounded-3xl border border-[var(--border)] bg-[var(--surface-muted)] p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <h3 className="text-sm font-black uppercase text-[var(--muted)]">
-                  Pendientes de aprobacion
-                </h3>
-                <span className="rounded-full bg-[var(--surface-strong)] px-2 py-1 text-xs font-black text-[var(--muted)]">
-                  {nicknameProposals.length}
-                </span>
-              </div>
+            <ExpandablePanel
+              title="Pendientes de aprobacion"
+              count={nicknameProposals.length}
+              openLabel="Ver pendientes"
+            >
               <NicknameProposalList
                 proposals={nicknameProposals}
                 currentUserId={user.id}
@@ -266,7 +266,7 @@ export default async function PersonPage({
                 rejectionThreshold={thresholds.rejectionThreshold}
                 voteAction={voteProposalAction}
               />
-            </div>
+            </ExpandablePanel>
           </div>
         </section>
 
@@ -326,16 +326,21 @@ export default async function PersonPage({
                   return (
                     <details
                       key={proposal.id}
+                      name="image-proposals"
                       className="group rounded-3xl border border-[var(--border)] bg-[var(--surface-muted)] p-3 sm:p-4"
                     >
                       <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
                         <span className="flex min-w-0 items-center gap-3">
-                          <PersonAvatar
-                            dailyPhoto={proposal.creatorDailyPhoto}
-                            name={proposal.creatorDisplayName}
-                            size="sm"
-                            className="!size-10 !rounded-xl !border-2 text-xs"
-                          />
+                          <span className="relative size-14 shrink-0 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
+                            <Image
+                              src={`/api/proposal-media/${proposal.id}`}
+                              alt={label}
+                              fill
+                              sizes="56px"
+                              unoptimized
+                              className="object-cover"
+                            />
+                          </span>
                           <span className="min-w-0">
                             <span className="block truncate text-sm font-black">
                               {label}
@@ -523,7 +528,7 @@ export default async function PersonPage({
             </div>
           ) : null}
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-6 grid auto-rows-[6rem] grid-cols-3 gap-1.5 sm:auto-rows-[7rem] sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
             {profile.media
               .filter((asset) => asset.status === "APPROVED")
               .map((asset) => {
@@ -535,11 +540,11 @@ export default async function PersonPage({
                   asset.width && asset.height
                     ? asset.width / asset.height > 1.35
                     : false;
-                const aspectClass = isTall
-                  ? "aspect-[4/5]"
+                const tileClass = isTall
+                  ? "row-span-2"
                   : isWide
-                    ? "aspect-[16/10]"
-                    : "aspect-square";
+                    ? "col-span-2"
+                    : "";
 
                 return (
                   <MediaLightbox
@@ -548,8 +553,8 @@ export default async function PersonPage({
                     alt={asset.altText || "Foto del perfil"}
                     width={asset.width}
                     height={asset.height}
-                    className="rounded-3xl border border-[var(--border)] bg-[var(--surface-muted)] shadow-[var(--shadow-soft)]"
-                    imageClassName={`${aspectClass} w-full object-cover`}
+                    className={`${tileClass} h-full rounded-xl border border-[var(--border)] bg-[var(--surface-muted)]`}
+                    imageClassName="h-full w-full object-cover"
                   />
                 );
               })}
