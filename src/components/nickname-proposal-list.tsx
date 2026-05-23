@@ -22,6 +22,7 @@ type NicknameProposal = {
   rejections: number;
   votes: {
     id: string;
+    userId: string;
     decision: string;
     comment?: string | null;
     createdAt: Date;
@@ -67,6 +68,9 @@ export function NicknameProposalList({
           100,
           Math.round((proposal.rejections / totalNeeded) * 100),
         );
+        const currentVote = proposal.votes.find(
+          (vote) => vote.userId === currentUserId,
+        )?.decision;
 
         return (
           <details
@@ -189,9 +193,12 @@ export function NicknameProposalList({
                       placeholder="Comentario opcional"
                       className="field h-10 w-full px-3 text-sm"
                     />
-                    <SubmitButton variant="secondary">
+                    <SubmitButton
+                      variant="secondary"
+                      disabled={currentVote === "APPROVE"}
+                    >
                       <Check className="size-4" aria-hidden />
-                      Aprobar
+                      {currentVote === "APPROVE" ? "Aprobado" : "Aprobar"}
                     </SubmitButton>
                   </form>
                   <form action={voteAction} className="space-y-2">
@@ -207,9 +214,12 @@ export function NicknameProposalList({
                       placeholder="Comentario opcional"
                       className="field h-10 w-full px-3 text-sm"
                     />
-                    <SubmitButton variant="danger">
+                    <SubmitButton
+                      variant="danger"
+                      disabled={currentVote === "REJECT"}
+                    >
                       <X className="size-4" aria-hidden />
-                      Rechazar
+                      {currentVote === "REJECT" ? "Rechazado" : "Rechazar"}
                     </SubmitButton>
                   </form>
                 </div>

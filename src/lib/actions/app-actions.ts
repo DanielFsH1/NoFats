@@ -819,7 +819,14 @@ export async function voteProposalAction(formData: FormData) {
       decision,
       comment,
     })
-    .onConflictDoNothing();
+    .onConflictDoUpdate({
+      target: [proposalVotes.proposalId, proposalVotes.userId],
+      set: {
+        decision,
+        comment,
+        createdAt: new Date(),
+      },
+    });
 
   await evaluateProposal(proposalId);
   revalidatePath("/proposals");

@@ -28,7 +28,7 @@ import Image from "next/image";
 export const dynamic = "force-dynamic";
 
 export default async function ProposalsPage() {
-  await requireUser();
+  const { user } = await requireUser();
   const [proposals, eligibleUsers, settings] = await Promise.all([
     getProposalsWithVotes(),
     getVotingThreshold(),
@@ -200,6 +200,9 @@ export default async function ProposalsPage() {
             100,
             Math.round((proposal.rejections / totalNeeded) * 100),
           );
+          const currentVote = proposal.votes.find(
+            (vote) => vote.userId === user.id,
+          )?.decision;
 
           return (
             <article
@@ -304,9 +307,9 @@ export default async function ProposalsPage() {
                       className="field min-h-20 w-full p-3"
                     />
                     <div className="mt-3">
-                      <SubmitButton>
+                      <SubmitButton disabled={currentVote === "APPROVE"}>
                         <Check className="size-4" aria-hidden />
-                        Aprobar
+                        {currentVote === "APPROVE" ? "Aprobado" : "Aprobar"}
                       </SubmitButton>
                     </div>
                   </form>
@@ -326,9 +329,12 @@ export default async function ProposalsPage() {
                       className="field min-h-20 w-full p-3"
                     />
                     <div className="mt-3">
-                      <SubmitButton variant="danger">
+                      <SubmitButton
+                        variant="danger"
+                        disabled={currentVote === "REJECT"}
+                      >
                         <X className="size-4" aria-hidden />
-                        Rechazar
+                        {currentVote === "REJECT" ? "Rechazado" : "Rechazar"}
                       </SubmitButton>
                     </div>
                   </form>

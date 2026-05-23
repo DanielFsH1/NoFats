@@ -1,5 +1,6 @@
 import { EmptyState } from "@/components/app-shell";
 import { ImageUploadForm } from "@/components/image-upload-form";
+import { MediaLightbox } from "@/components/media-lightbox";
 import { NicknameList } from "@/components/nickname-list";
 import { NicknameProposalList } from "@/components/nickname-proposal-list";
 import { PersonAvatar } from "@/components/person-avatar";
@@ -269,6 +270,299 @@ export default async function PersonPage({
           </div>
         </section>
 
+        <section className="surface rounded-[28px] p-5 sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="flex items-center gap-2 text-2xl font-black">
+                <Camera className="size-5" aria-hidden />
+                Galeria
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
+                Las fotos aprobadas rotan como foto de perfil del dia. Toca una
+                imagen para verla completa sin salir del perfil.
+              </p>
+            </div>
+            <div className="w-full lg:max-w-sm">
+              <ImageUploadForm
+                action={uploadImageAction}
+                personId={profile.person.id}
+              />
+            </div>
+          </div>
+
+          {imageProposals.length > 0 ? (
+            <div className="mt-6">
+              <p className="text-xs font-bold uppercase text-[var(--muted)]">
+                Fotos pendientes de aprobacion
+              </p>
+              <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                {imageProposals.map((proposal) => {
+                  const payload = proposal.payload as {
+                    altText?: unknown;
+                    width?: unknown;
+                    height?: unknown;
+                  };
+                  const label =
+                    typeof payload.altText === "string" && payload.altText
+                      ? payload.altText
+                      : "Foto propuesta";
+                  const totalNeeded = Math.max(
+                    thresholds.approvalThreshold,
+                    thresholds.rejectionThreshold,
+                    1,
+                  );
+                  const approvalWidth = Math.min(
+                    100,
+                    Math.round((proposal.approvals / totalNeeded) * 100),
+                  );
+                  const rejectionWidth = Math.min(
+                    100,
+                    Math.round((proposal.rejections / totalNeeded) * 100),
+                  );
+                  const currentVote = proposal.votes.find(
+                    (vote) => vote.userId === user.id,
+                  )?.decision;
+
+                  return (
+                    <details
+                      key={proposal.id}
+                      className="group rounded-3xl border border-[var(--border)] bg-[var(--surface-muted)] p-3 sm:p-4"
+                    >
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+                        <span className="flex min-w-0 items-center gap-3">
+                          <PersonAvatar
+                            dailyPhoto={proposal.creatorDailyPhoto}
+                            name={proposal.creatorDisplayName}
+                            size="sm"
+                            className="!size-10 !rounded-xl !border-2 text-xs"
+                          />
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-black">
+                              {label}
+                            </span>
+                            <span className="mt-1 block text-xs text-[var(--muted)]">
+                              {proposal.creatorDisplayName} propuso esta foto
+                            </span>
+                          </span>
+                        </span>
+                        <span className="flex shrink-0 items-center gap-2">
+                          <span className="rounded-full bg-[color-mix(in_srgb,var(--success)_12%,transparent)] px-2 py-1 text-xs font-black text-[var(--success)]">
+                            {proposal.approvals}/
+                            {thresholds.approvalThreshold}
+                          </span>
+                          <span className="rounded-full bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-2 py-1 text-xs font-black text-[var(--danger)]">
+                            {proposal.rejections}/
+                            {thresholds.rejectionThreshold}
+                          </span>
+                          <ChevronDown
+                            className="size-4 shrink-0 text-[var(--muted)] transition group-open:rotate-180"
+                            aria-hidden
+                          />
+                        </span>
+                      </summary>
+
+                      <div className="mt-4 space-y-4 border-t border-[var(--border)] pt-4">
+                        <MediaLightbox
+                          src={`/api/proposal-media/${proposal.id}`}
+                          fullSrc={`/api/proposal-media/${proposal.id}?size=full`}
+                          alt={label}
+                          width={
+                            typeof payload.width === "number"
+                              ? payload.width
+                              : undefined
+                          }
+                          height={
+                            typeof payload.height === "number"
+                              ? payload.height
+                              : undefined
+                          }
+                          className="w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)]"
+                          imageClassName="aspect-[4/3] w-full object-cover sm:aspect-video"
+                        />
+
+                        <div className="space-y-2">
+                          <div
+                            className="h-2 overflow-hidden rounded-full bg-[var(--surface-strong)]"
+                            aria-hidden
+                          >
+                            <div
+                              className="h-full rounded-full bg-[var(--success)]"
+                              style={{ width: `${approvalWidth}%` }}
+                            />
+                          </div>
+                          <div
+                            className="h-2 overflow-hidden rounded-full bg-[var(--surface-strong)]"
+                            aria-hidden
+                          >
+                            <div
+                              className="h-full rounded-full bg-[var(--danger)]"
+                              style={{ width: `${rejectionWidth}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2 text-sm">
+                          <p className="font-bold">Decisiones</p>
+                          {proposal.votes.length > 0 ? (
+                            proposal.votes.map((vote) => (
+                              <article
+                                key={vote.id}
+                                className="flex gap-3 rounded-xl bg-[var(--surface)] px-3 py-2"
+                              >
+                                <PersonAvatar
+                                  dailyPhoto={vote.authorDailyPhoto}
+                                  name={vote.authorName}
+                                  size="sm"
+                                  className="!size-9 !rounded-xl !border-2 text-xs"
+                                />
+                                <p>
+                                  <strong>{vote.authorName}</strong>{" "}
+                                  <span
+                                    className={
+                                      vote.decision === "APPROVE"
+                                        ? "text-[var(--success)]"
+                                        : "text-[var(--danger)]"
+                                    }
+                                  >
+                                    {vote.decision === "APPROVE"
+                                      ? "aprobo"
+                                      : "rechazo"}
+                                  </span>
+                                  <span className="text-xs text-[var(--muted)]">
+                                    {" "}
+                                    {formatDateTime(vote.createdAt)}
+                                  </span>
+                                  {vote.comment ? (
+                                    <span className="block text-[var(--muted)]">
+                                      {vote.comment}
+                                    </span>
+                                  ) : null}
+                                </p>
+                              </article>
+                            ))
+                          ) : (
+                            <p className="text-[var(--muted)]">
+                              Aun no hay decisiones.
+                            </p>
+                          )}
+                        </div>
+
+                        {proposal.createdByUserId === user.id ? (
+                          <p className="rounded-2xl bg-[var(--surface)] p-3 text-sm text-[var(--muted)]">
+                            Otra persona debe aprobar o rechazar esta foto.
+                          </p>
+                        ) : (
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <form
+                              action={voteProposalAction}
+                              className="space-y-2"
+                            >
+                              <input
+                                type="hidden"
+                                name="proposalId"
+                                value={proposal.id}
+                              />
+                              <input
+                                type="hidden"
+                                name="decision"
+                                value="APPROVE"
+                              />
+                              <input
+                                name="comment"
+                                aria-label="Comentario opcional al aprobar foto"
+                                placeholder="Comentario opcional"
+                                className="field h-10 w-full px-3 text-sm"
+                              />
+                              <SubmitButton
+                                variant="secondary"
+                                disabled={currentVote === "APPROVE"}
+                              >
+                                <Check className="size-4" aria-hidden />
+                                {currentVote === "APPROVE"
+                                  ? "Aprobado"
+                                  : "Aprobar"}
+                              </SubmitButton>
+                            </form>
+                            <form
+                              action={voteProposalAction}
+                              className="space-y-2"
+                            >
+                              <input
+                                type="hidden"
+                                name="proposalId"
+                                value={proposal.id}
+                              />
+                              <input
+                                type="hidden"
+                                name="decision"
+                                value="REJECT"
+                              />
+                              <input
+                                name="comment"
+                                aria-label="Comentario opcional al rechazar foto"
+                                placeholder="Comentario opcional"
+                                className="field h-10 w-full px-3 text-sm"
+                              />
+                              <SubmitButton
+                                variant="danger"
+                                disabled={currentVote === "REJECT"}
+                              >
+                                <X className="size-4" aria-hidden />
+                                {currentVote === "REJECT"
+                                  ? "Rechazado"
+                                  : "Rechazar"}
+                              </SubmitButton>
+                            </form>
+                          </div>
+                        )}
+                      </div>
+                    </details>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {profile.media
+              .filter((asset) => asset.status === "APPROVED")
+              .map((asset) => {
+                const isTall =
+                  asset.width && asset.height
+                    ? asset.height / asset.width > 1.2
+                    : false;
+                const isWide =
+                  asset.width && asset.height
+                    ? asset.width / asset.height > 1.35
+                    : false;
+                const aspectClass = isTall
+                  ? "aspect-[4/5]"
+                  : isWide
+                    ? "aspect-[16/10]"
+                    : "aspect-square";
+
+                return (
+                  <MediaLightbox
+                    key={asset.id}
+                    src={`/api/media/${asset.id}`}
+                    alt={asset.altText || "Foto del perfil"}
+                    width={asset.width}
+                    height={asset.height}
+                    className="rounded-3xl border border-[var(--border)] bg-[var(--surface-muted)] shadow-[var(--shadow-soft)]"
+                    imageClassName={`${aspectClass} w-full object-cover`}
+                  />
+                );
+              })}
+          </div>
+          {profile.media.filter((asset) => asset.status === "APPROVED")
+            .length === 0 ? (
+            <EmptyState
+              title="Sin fotos"
+              body="Cuando haya fotos aprobadas, apareceran en esta galeria."
+            />
+          ) : null}
+        </section>
+
         <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="space-y-6">
             <div className="surface rounded-[28px] p-5">
@@ -505,248 +799,6 @@ export default async function PersonPage({
               </section>
             ) : null}
 
-            <section className="surface rounded-[28px] p-5">
-              <h2 className="flex items-center gap-2 text-xl font-black">
-                <Camera className="size-5" aria-hidden />
-                Galeria
-              </h2>
-              <p className="mt-2 text-sm text-[var(--muted)]">
-                Las fotos aprobadas rotan como foto de perfil del dia.
-              </p>
-              <ImageUploadForm
-                action={uploadImageAction}
-                personId={profile.person.id}
-              />
-              {imageProposals.length > 0 ? (
-                <div className="mt-5 space-y-2">
-                  <p className="text-xs font-bold uppercase text-[var(--muted)]">
-                    Fotos pendientes de aprobacion
-                  </p>
-                  {imageProposals.map((proposal) => {
-                    const payload = proposal.payload as {
-                      altText?: unknown;
-                    };
-                    const label =
-                      typeof payload.altText === "string" && payload.altText
-                        ? payload.altText
-                        : "Foto propuesta";
-                    const totalNeeded = Math.max(
-                      thresholds.approvalThreshold,
-                      thresholds.rejectionThreshold,
-                      1,
-                    );
-                    const approvalWidth = Math.min(
-                      100,
-                      Math.round((proposal.approvals / totalNeeded) * 100),
-                    );
-                    const rejectionWidth = Math.min(
-                      100,
-                      Math.round((proposal.rejections / totalNeeded) * 100),
-                    );
-
-                    return (
-                      <details
-                        key={proposal.id}
-                        className="group rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3"
-                      >
-                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
-                          <span className="flex min-w-0 items-center gap-3">
-                            <PersonAvatar
-                              dailyPhoto={proposal.creatorDailyPhoto}
-                              name={proposal.creatorDisplayName}
-                              size="sm"
-                              className="!size-10 !rounded-xl !border-2 text-xs"
-                            />
-                            <span className="min-w-0">
-                              <span className="block truncate text-sm font-black">
-                                {label}
-                              </span>
-                              <span className="mt-1 block text-xs text-[var(--muted)]">
-                                {proposal.creatorDisplayName} propuso esta foto
-                              </span>
-                            </span>
-                          </span>
-                          <span className="flex items-center gap-2">
-                            <span className="rounded-full bg-[color-mix(in_srgb,var(--success)_12%,transparent)] px-2 py-1 text-xs font-black text-[var(--success)]">
-                              {proposal.approvals}/
-                              {thresholds.approvalThreshold}
-                            </span>
-                            <span className="rounded-full bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-2 py-1 text-xs font-black text-[var(--danger)]">
-                              {proposal.rejections}/
-                              {thresholds.rejectionThreshold}
-                            </span>
-                            <ChevronDown
-                              className="size-4 shrink-0 text-[var(--muted)] transition group-open:rotate-180"
-                              aria-hidden
-                            />
-                          </span>
-                        </summary>
-
-                        <div className="mt-4 space-y-4 border-t border-[var(--border)] pt-4">
-                          <a
-                            href={`/api/proposal-media/${proposal.id}?size=full`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="block overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-muted)]"
-                            aria-label={`Ver foto propuesta: ${label}`}
-                          >
-                            <Image
-                              src={`/api/proposal-media/${proposal.id}`}
-                              alt={label}
-                              width={640}
-                              height={360}
-                              unoptimized
-                              className="aspect-video w-full object-cover"
-                            />
-                          </a>
-
-                          <div className="space-y-2">
-                            <div
-                              className="h-2 overflow-hidden rounded-full bg-[var(--surface-strong)]"
-                              aria-hidden
-                            >
-                              <div
-                                className="h-full rounded-full bg-[var(--success)]"
-                                style={{ width: `${approvalWidth}%` }}
-                              />
-                            </div>
-                            <div
-                              className="h-2 overflow-hidden rounded-full bg-[var(--surface-strong)]"
-                              aria-hidden
-                            >
-                              <div
-                                className="h-full rounded-full bg-[var(--danger)]"
-                                style={{ width: `${rejectionWidth}%` }}
-                              />
-                            </div>
-                          </div>
-
-                          <div className="space-y-2 text-sm">
-                            <p className="font-bold">Decisiones</p>
-                            {proposal.votes.length > 0 ? (
-                              proposal.votes.map((vote) => (
-                                <article
-                                  key={vote.id}
-                                  className="flex gap-3 rounded-xl bg-[var(--surface-muted)] px-3 py-2"
-                                >
-                                  <PersonAvatar
-                                    dailyPhoto={vote.authorDailyPhoto}
-                                    name={vote.authorName}
-                                    size="sm"
-                                    className="!size-9 !rounded-xl !border-2 text-xs"
-                                  />
-                                  <p>
-                                    <strong>{vote.authorName}</strong>{" "}
-                                    <span
-                                      className={
-                                        vote.decision === "APPROVE"
-                                          ? "text-[var(--success)]"
-                                          : "text-[var(--danger)]"
-                                      }
-                                    >
-                                      {vote.decision === "APPROVE"
-                                        ? "aprobo"
-                                        : "rechazo"}
-                                    </span>
-                                    <span className="text-xs text-[var(--muted)]">
-                                      {" "}
-                                      {formatDateTime(vote.createdAt)}
-                                    </span>
-                                    {vote.comment ? (
-                                      <span className="block text-[var(--muted)]">
-                                        {vote.comment}
-                                      </span>
-                                    ) : null}
-                                  </p>
-                                </article>
-                              ))
-                            ) : (
-                              <p className="text-[var(--muted)]">
-                                Aun no hay decisiones.
-                              </p>
-                            )}
-                          </div>
-
-                          {proposal.createdByUserId === user.id ? (
-                            <p className="rounded-2xl bg-[var(--surface-muted)] p-3 text-sm text-[var(--muted)]">
-                              Otra persona debe aprobar o rechazar esta foto.
-                            </p>
-                          ) : (
-                            <div className="grid gap-2 sm:grid-cols-2">
-                              <form
-                                action={voteProposalAction}
-                                className="space-y-2"
-                              >
-                                <input
-                                  type="hidden"
-                                  name="proposalId"
-                                  value={proposal.id}
-                                />
-                                <input
-                                  type="hidden"
-                                  name="decision"
-                                  value="APPROVE"
-                                />
-                                <input
-                                  name="comment"
-                                  aria-label="Comentario opcional al aprobar foto"
-                                  placeholder="Comentario opcional"
-                                  className="field h-10 w-full px-3 text-sm"
-                                />
-                                <SubmitButton variant="secondary">
-                                  <Check className="size-4" aria-hidden />
-                                  Aprobar
-                                </SubmitButton>
-                              </form>
-                              <form
-                                action={voteProposalAction}
-                                className="space-y-2"
-                              >
-                                <input
-                                  type="hidden"
-                                  name="proposalId"
-                                  value={proposal.id}
-                                />
-                                <input
-                                  type="hidden"
-                                  name="decision"
-                                  value="REJECT"
-                                />
-                                <input
-                                  name="comment"
-                                  aria-label="Comentario opcional al rechazar foto"
-                                  placeholder="Comentario opcional"
-                                  className="field h-10 w-full px-3 text-sm"
-                                />
-                                <SubmitButton variant="danger">
-                                  <X className="size-4" aria-hidden />
-                                  Rechazar
-                                </SubmitButton>
-                              </form>
-                            </div>
-                          )}
-                        </div>
-                      </details>
-                    );
-                  })}
-                </div>
-              ) : null}
-              <div className="mt-4 grid grid-cols-3 gap-2">
-                {profile.media
-                  .filter((asset) => asset.status === "APPROVED")
-                  .map((asset) => (
-                    <Image
-                      key={asset.id}
-                      src={`/api/media/${asset.id}`}
-                      alt={asset.altText || "Foto del perfil"}
-                      width={180}
-                      height={180}
-                      unoptimized
-                      className="aspect-square rounded-xl object-cover"
-                    />
-                  ))}
-              </div>
-            </section>
           </aside>
         </section>
       </div>
