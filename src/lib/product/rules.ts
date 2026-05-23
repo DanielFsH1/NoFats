@@ -25,6 +25,17 @@ export type ManagePersonInput = {
   };
 };
 
+export type AddNicknameDirectlyInput = {
+  actorId: string;
+  targetUserId?: string | null;
+};
+
+export type ProposalVotePermissionInput = {
+  actorId: string;
+  proposalCreatorId: string;
+  proposalType: string;
+};
+
 export type DailyNicknameOption = {
   id: string;
   value: string;
@@ -192,6 +203,21 @@ export function canManagePerson(input: ManagePersonInput) {
   }
 
   return input.target.userId === input.actor.id;
+}
+
+export function canAddNicknameDirectly(input: AddNicknameDirectlyInput) {
+  return Boolean(input.targetUserId && input.targetUserId === input.actorId);
+}
+
+export function canVoteOnProposal(input: ProposalVotePermissionInput) {
+  if (
+    input.proposalType === "ADD_NICKNAME" &&
+    input.actorId === input.proposalCreatorId
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 export function chooseDailyNickname(input: DailyNicknameInput) {

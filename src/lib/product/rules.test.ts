@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  canAddNicknameDirectly,
   canManagePerson,
+  canVoteOnProposal,
   chooseDailyMedia,
   chooseDailyNickname,
   countEligibleRealUsers,
@@ -153,6 +155,46 @@ describe("canManagePerson", () => {
       canManagePerson({
         actor: { id: "u1", role: "ADMIN" },
         target: { kind: "REAL", userId: "u2" },
+      }),
+    ).toBe(true);
+  });
+});
+
+describe("canAddNicknameDirectly", () => {
+  it("only lets a person add nicknames directly to their own real profile", () => {
+    expect(canAddNicknameDirectly({ actorId: "u1", targetUserId: "u1" })).toBe(
+      true,
+    );
+    expect(canAddNicknameDirectly({ actorId: "u1", targetUserId: "u2" })).toBe(
+      false,
+    );
+    expect(canAddNicknameDirectly({ actorId: "u1", targetUserId: null })).toBe(
+      false,
+    );
+  });
+});
+
+describe("canVoteOnProposal", () => {
+  it("prevents creators from approving their own nickname proposals", () => {
+    expect(
+      canVoteOnProposal({
+        actorId: "u1",
+        proposalCreatorId: "u1",
+        proposalType: "ADD_NICKNAME",
+      }),
+    ).toBe(false);
+    expect(
+      canVoteOnProposal({
+        actorId: "u2",
+        proposalCreatorId: "u1",
+        proposalType: "ADD_NICKNAME",
+      }),
+    ).toBe(true);
+    expect(
+      canVoteOnProposal({
+        actorId: "u1",
+        proposalCreatorId: "u1",
+        proposalType: "UPDATE_SITE_COPY",
       }),
     ).toBe(true);
   });

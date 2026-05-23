@@ -25,7 +25,9 @@ import {
 import { id } from "@/lib/ids";
 import { getTomorrowDateKey } from "@/lib/product/dates";
 import {
+  canAddNicknameDirectly,
   canManagePerson,
+  canVoteOnProposal,
   getProposalThresholds,
   mergeSiteCopy,
   normalizeVoteSettings,
@@ -150,6 +152,32 @@ async function createPendingProposalWithCreatorApproval(input: {
     .onConflictDoNothing();
 
   await evaluateProposal(proposalId);
+
+  return proposalId;
+}
+
+async function createPendingProposal(input: {
+  type: typeof proposals.$inferInsert.type;
+  targetPersonId?: string;
+  createdByUserId: string;
+  title: string;
+  summary?: string;
+  payload: Record<string, unknown>;
+}) {
+  const proposalId = id("proposal");
+
+  await getDb()
+    .insert(proposals)
+    .values({
+      id: proposalId,
+      type: input.type,
+      status: "PENDING",
+      targetPersonId: input.targetPersonId,
+      createdByUserId: input.createdByUserId,
+      title: input.title,
+      summary: input.summary ?? "",
+      payload: input.payload,
+    });
 
   return proposalId;
 }
@@ -451,9 +479,9 @@ export async function addNicknameAction(formData: FormData) {
     throw new Error("Perfil no encontrado.");
   }
 
-  const canDirectlyEdit = canManagePerson({
-    actor: { id: user.id, role: user.role },
-    target: { kind: target.kind, userId: target.userId },
+  const canDirectlyEdit = canAddNicknameDirectly({
+    actorId: user.id,
+    targetUserId: target.userId,
   });
 
   if (canDirectlyEdit) {
@@ -476,7 +504,7 @@ export async function addNicknameAction(formData: FormData) {
       message: `${user.name} agrego el apodo "${value}".`,
     });
   } else {
-    await createPendingProposalWithCreatorApproval({
+    await createPendingProposal({
       type: "ADD_NICKNAME",
       targetPersonId: personId,
       createdByUserId: user.id,
@@ -704,6 +732,16 @@ export async function voteProposalAction(formData: FormData) {
 
   if (!proposal || proposal.status !== "PENDING") {
     throw new Error("La propuesta ya no esta pendiente.");
+  }
+
+  if (
+    !canVoteOnProposal({
+      actorId: user.id,
+      proposalCreatorId: proposal.createdByUserId,
+      proposalType: proposal.type,
+    })
+  ) {
+    throw new Error("Otra persona debe aprobar esta propuesta de apodo.");
   }
 
   await db
