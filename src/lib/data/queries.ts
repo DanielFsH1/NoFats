@@ -26,9 +26,14 @@ type PeopleSummaryOptions = {
 };
 
 export async function getPeopleSummaries(
-  dateKey = getDateKey(),
+  dateKeyOrOptions: string | PeopleSummaryOptions = getDateKey(),
   options: PeopleSummaryOptions = {},
 ) {
+  const dateKey =
+    typeof dateKeyOrOptions === "string" ? dateKeyOrOptions : getDateKey();
+  const resolvedOptions =
+    typeof dateKeyOrOptions === "string" ? options : dateKeyOrOptions;
+
   await materializeDailyNicknames(dateKey);
 
   const db = getDb();
@@ -38,12 +43,12 @@ export async function getPeopleSummaries(
       .from(people)
       .where(and(eq(people.status, "ACTIVE"), isNull(people.deletedAt)))
       .orderBy(people.initialDisplayName),
-    options.includeAdminProfiles
+    resolvedOptions.includeAdminProfiles
       ? []
       : db.select({ id: users.id }).from(users).where(eq(users.role, "ADMIN")),
   ]);
   const adminUserIds = new Set(adminRows.map((user) => user.id));
-  const rows = options.includeAdminProfiles
+  const rows = resolvedOptions.includeAdminProfiles
     ? allRows
     : allRows.filter((person) =>
         isSocialProfileVisible({

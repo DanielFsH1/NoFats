@@ -30,6 +30,11 @@ export type AddNicknameDirectlyInput = {
   targetUserId?: string | null;
 };
 
+export type AddOwnProfileContentDirectlyInput = {
+  actorId: string;
+  targetUserId?: string | null;
+};
+
 export type ProposalVotePermissionInput = {
   actorId: string;
   proposalCreatorId: string;
@@ -206,18 +211,45 @@ export function canManagePerson(input: ManagePersonInput) {
 }
 
 export function canAddNicknameDirectly(input: AddNicknameDirectlyInput) {
+  return canAddOwnProfileContentDirectly(input);
+}
+
+export function canAddOwnProfileContentDirectly(
+  input: AddOwnProfileContentDirectlyInput,
+) {
   return Boolean(input.targetUserId && input.targetUserId === input.actorId);
 }
 
 export function canVoteOnProposal(input: ProposalVotePermissionInput) {
   if (
-    input.proposalType === "ADD_NICKNAME" &&
+    (input.proposalType === "ADD_NICKNAME" ||
+      input.proposalType === "ADD_IMAGE") &&
     input.actorId === input.proposalCreatorId
   ) {
     return false;
   }
 
   return true;
+}
+
+export function normalizeNicknameValue(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("es")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function hasDuplicateNicknameValue(
+  existingValues: string[],
+  candidate: string,
+) {
+  const normalizedCandidate = normalizeNicknameValue(candidate);
+
+  return existingValues.some(
+    (value) => normalizeNicknameValue(value) === normalizedCandidate,
+  );
 }
 
 export function chooseDailyNickname(input: DailyNicknameInput) {

@@ -4,7 +4,7 @@ import { put } from "@vercel/blob";
 import { getDb } from "@/lib/db";
 import { mediaAssets, people, proposals } from "@/lib/db/schema";
 import { id } from "@/lib/ids";
-import { canManagePerson } from "@/lib/product/rules";
+import { canAddOwnProfileContentDirectly } from "@/lib/product/rules";
 import { requireUser } from "@/lib/session";
 import { getString, imageFileSchema } from "@/lib/validation";
 import { eq } from "drizzle-orm";
@@ -57,9 +57,9 @@ export async function uploadImageAction(formData: FormData) {
     }),
   ]);
 
-  const canDirectlyEdit = canManagePerson({
-    actor: { id: user.id, role: user.role },
-    target: { kind: target.kind, userId: target.userId },
+  const canDirectlyEdit = canAddOwnProfileContentDirectly({
+    actorId: user.id,
+    targetUserId: target.userId,
   });
 
   if (canDirectlyEdit) {

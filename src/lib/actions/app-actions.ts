@@ -29,7 +29,9 @@ import {
   canManagePerson,
   canVoteOnProposal,
   getProposalThresholds,
+  hasDuplicateNicknameValue,
   mergeSiteCopy,
+  normalizeNicknameValue,
   normalizeVoteSettings,
   shouldReplacePrimaryNickname,
 } from "@/lib/product/rules";
@@ -44,7 +46,7 @@ import {
   siteCopySchema,
   voteSettingsSchema,
 } from "@/lib/validation";
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -116,6 +118,46 @@ async function promoteApprovedNicknameIfNeeded(
     .update(people)
     .set({ primaryNicknameId: nicknameId, updatedAt: new Date() })
     .where(eq(people.id, target.id));
+}
+
+async function assertNicknameIsUnique(
+  personId: string,
+  value: string,
+  options: { excludeProposalId?: string } = {},
+) {
+  const db = getDb();
+  const [existingNicknames, pendingNicknameProposals] = await Promise.all([
+    db
+      .select({ value: nicknames.value })
+      .from(nicknames)
+      .where(and(eq(nicknames.personId, personId), isNull(nicknames.deletedAt))),
+    db
+      .select({ id: proposals.id, payload: proposals.payload })
+      .from(proposals)
+      .where(
+        and(
+          eq(proposals.targetPersonId, personId),
+          eq(proposals.type, "ADD_NICKNAME"),
+          eq(proposals.status, "PENDING"),
+        ),
+      ),
+  ]);
+  const pendingValues = pendingNicknameProposals
+    .filter((proposal) => proposal.id !== options.excludeProposalId)
+    .map((proposal) => {
+      const payload = proposal.payload as { value?: unknown };
+      return typeof payload.value === "string" ? payload.value : "";
+    })
+    .filter(Boolean);
+
+  if (
+    hasDuplicateNicknameValue(
+      [...existingNicknames.map((nickname) => nickname.value), ...pendingValues],
+      normalizeNicknameValue(value),
+    )
+  ) {
+    throw new Error("Ese apodo ya existe o ya esta propuesto para este perfil.");
+  }
 }
 
 async function createPendingProposalWithCreatorApproval(input: {
@@ -479,6 +521,8 @@ export async function addNicknameAction(formData: FormData) {
     throw new Error("Perfil no encontrado.");
   }
 
+  await assertNicknameIsUnique(personId, value);
+
   const canDirectlyEdit = canAddNicknameDirectly({
     actorId: user.id,
     targetUserId: target.userId,
@@ -741,7 +785,7 @@ export async function voteProposalAction(formData: FormData) {
       proposalType: proposal.type,
     })
   ) {
-    throw new Error("Otra persona debe aprobar esta propuesta de apodo.");
+    throw new Error("Otra persona debe aprobar esta propuesta.");
   }
 
   await db
@@ -829,6 +873,9 @@ async function applyProposal(proposal: typeof proposals.$inferSelect) {
   if (proposal.type === "ADD_NICKNAME" && proposal.targetPersonId) {
     const nicknameId = id("nick");
     const value = String(payload.value ?? "");
+    await assertNicknameIsUnique(proposal.targetPersonId, value, {
+      excludeProposalId: proposal.id,
+    });
     await db.insert(nicknames).values({
       id: nicknameId,
       personId: proposal.targetPersonId,

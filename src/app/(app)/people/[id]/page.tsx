@@ -1,5 +1,7 @@
 import { EmptyState } from "@/components/app-shell";
 import { ImageUploadForm } from "@/components/image-upload-form";
+import { NicknameList } from "@/components/nickname-list";
+import { NicknameProposalList } from "@/components/nickname-proposal-list";
 import { PersonAvatar } from "@/components/person-avatar";
 import { SubmitButton } from "@/components/submit-button";
 import {
@@ -23,7 +25,6 @@ import {
 import { canManagePerson, getProposalThresholds } from "@/lib/product/rules";
 import { requireUser } from "@/lib/session";
 import {
-  CalendarPlus,
   Camera,
   Check,
   ChevronDown,
@@ -69,6 +70,9 @@ export default async function PersonPage({
   const nicknameProposals = profile.pendingProposals.filter(
     (proposal) =>
       proposal.type === "ADD_NICKNAME" || proposal.type === "REMOVE_NICKNAME",
+  );
+  const imageProposals = profile.pendingProposals.filter(
+    (proposal) => proposal.type === "ADD_IMAGE",
   );
   const thresholds = getProposalThresholds(
     eligibleUsers,
@@ -159,6 +163,76 @@ export default async function PersonPage({
                 {approvedNicknames.length} apodos / {profile.media.length} fotos
               </p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="surface rounded-[28px] p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="flex items-center gap-2 text-xl font-black">
+              <Sparkles className="size-5" aria-hidden />
+              Apodos
+            </h2>
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              {approvedNicknames.length} aprobados / {nicknameProposals.length}{" "}
+              pendientes
+            </p>
+          </div>
+          <form
+            action={addNicknameAction}
+            className="flex w-full gap-2 sm:max-w-md"
+          >
+            <input type="hidden" name="personId" value={profile.person.id} />
+            <input
+              name="nickname"
+              aria-label="Nuevo apodo"
+              required
+              placeholder="Nuevo apodo"
+              className="field h-11 min-w-0 flex-1 px-3"
+            />
+            <SubmitButton variant="secondary">Agregar</SubmitButton>
+          </form>
+        </div>
+
+        <div className="mt-5 grid min-h-0 gap-4 xl:grid-cols-2">
+          <div className="min-w-0 rounded-3xl border border-[var(--border)] bg-[var(--surface-muted)] p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h3 className="text-sm font-black uppercase text-[var(--muted)]">
+                Apodos aprobados
+              </h3>
+              <span className="rounded-full bg-[var(--surface-strong)] px-2 py-1 text-xs font-black text-[var(--muted)]">
+                {approvedNicknames.length}
+              </span>
+            </div>
+            <NicknameList
+              nicknames={approvedNicknames.map((nickname) => ({
+                id: nickname.id,
+                value: nickname.value,
+                status: nickname.status,
+              }))}
+              personId={profile.person.id}
+              nominateAction={nominateDailyNicknameAction}
+              removeAction={removeNicknameAction}
+            />
+          </div>
+
+          <div className="min-w-0 rounded-3xl border border-[var(--border)] bg-[var(--surface-muted)] p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h3 className="text-sm font-black uppercase text-[var(--muted)]">
+                Pendientes de aprobacion
+              </h3>
+              <span className="rounded-full bg-[var(--surface-strong)] px-2 py-1 text-xs font-black text-[var(--muted)]">
+                {nicknameProposals.length}
+              </span>
+            </div>
+            <NicknameProposalList
+              proposals={nicknameProposals}
+              currentUserId={user.id}
+              approvalThreshold={thresholds.approvalThreshold}
+              rejectionThreshold={thresholds.rejectionThreshold}
+              voteAction={voteProposalAction}
+            />
           </div>
         </div>
       </section>
@@ -384,89 +458,29 @@ export default async function PersonPage({
 
           <section className="surface rounded-[28px] p-5">
             <h2 className="flex items-center gap-2 text-xl font-black">
-              <Sparkles className="size-5" aria-hidden />
-              Apodos
+              <Camera className="size-5" aria-hidden />
+              Galeria
             </h2>
-            <form action={addNicknameAction} className="mt-4 flex gap-2">
-              <input type="hidden" name="personId" value={profile.person.id} />
-              <input
-                name="nickname"
-                aria-label="Nuevo apodo"
-                required
-                placeholder="Nuevo apodo"
-                className="field h-11 min-w-0 flex-1 px-3"
-              />
-              <SubmitButton variant="secondary">Agregar</SubmitButton>
-            </form>
-            <div className="mt-4 space-y-2">
-              {approvedNicknames.map((nickname) => (
-                <div
-                  key={nickname.id}
-                  className="soft-card flex items-center justify-between gap-3 rounded-2xl p-3"
-                >
-                  <span>
-                    <strong>{nickname.value}</strong>
-                    {nickname.status === "TEMPORARY" ? (
-                      <span className="ml-2 text-xs text-[var(--muted)]">
-                        inicial
-                      </span>
-                    ) : null}
-                  </span>
-                  <div className="flex gap-1">
-                    {nickname.status === "APPROVED" ? (
-                      <form action={nominateDailyNicknameAction}>
-                        <input
-                          type="hidden"
-                          name="personId"
-                          value={profile.person.id}
-                        />
-                        <input
-                          type="hidden"
-                          name="nicknameId"
-                          value={nickname.id}
-                        />
-                        <button
-                          type="submit"
-                          aria-label={`Postular "${nickname.value}" para apodo del dia siguiente`}
-                          title="Postular para el dia siguiente"
-                          className="inline-flex size-9 items-center justify-center rounded-full text-[var(--accent)] transition hover:bg-[var(--surface-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-                        >
-                          <CalendarPlus className="size-4" aria-hidden />
-                        </button>
-                      </form>
-                    ) : null}
-                    <form action={removeNicknameAction}>
-                      <input
-                        type="hidden"
-                        name="nicknameId"
-                        value={nickname.id}
-                      />
-                      <button
-                        type="submit"
-                        aria-label={`Quitar el apodo "${nickname.value}"`}
-                        title="Quitar apodo"
-                        className="inline-flex size-9 items-center justify-center rounded-full text-[var(--danger)] transition hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--danger)]"
-                      >
-                        <Trash2 className="size-4" aria-hidden />
-                      </button>
-                    </form>
-                  </div>
-                </div>
-              ))}
-            </div>
-            {nicknameProposals.length > 0 ? (
+            <p className="mt-2 text-sm text-[var(--muted)]">
+              Las fotos aprobadas rotan como foto de perfil del dia.
+            </p>
+            <ImageUploadForm
+              action={uploadImageAction}
+              personId={profile.person.id}
+            />
+            {imageProposals.length > 0 ? (
               <div className="mt-5 space-y-2">
                 <p className="text-xs font-bold uppercase text-[var(--muted)]">
-                  Pendientes de aprobacion
+                  Fotos pendientes de aprobacion
                 </p>
-                {nicknameProposals.map((proposal) => {
+                {imageProposals.map((proposal) => {
                   const payload = proposal.payload as {
-                    value?: unknown;
-                    nicknameId?: unknown;
+                    altText?: unknown;
                   };
-                  const proposedNickname = String(
-                    payload.value ?? proposal.title,
-                  );
+                  const label =
+                    typeof payload.altText === "string" && payload.altText
+                      ? payload.altText
+                      : "Foto propuesta";
                   const totalNeeded = Math.max(
                     thresholds.approvalThreshold,
                     thresholds.rejectionThreshold,
@@ -496,12 +510,10 @@ export default async function PersonPage({
                           />
                           <span className="min-w-0">
                             <span className="block truncate text-sm font-black">
-                              {proposal.type === "ADD_NICKNAME"
-                                ? proposedNickname
-                                : `Quitar ${proposedNickname}`}
+                              {label}
                             </span>
                             <span className="mt-1 block text-xs text-[var(--muted)]">
-                              {proposal.creatorDisplayName} propuso este cambio
+                              {proposal.creatorDisplayName} propuso esta foto
                             </span>
                           </span>
                         </span>
@@ -543,7 +555,7 @@ export default async function PersonPage({
                         </div>
 
                         <div className="space-y-2 text-sm">
-                          <p className="font-bold">Aprobaciones</p>
+                          <p className="font-bold">Decisiones</p>
                           {proposal.votes.length > 0 ? (
                             proposal.votes.map((vote) => (
                               <article
@@ -588,78 +600,70 @@ export default async function PersonPage({
                           )}
                         </div>
 
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          <form
-                            action={voteProposalAction}
-                            className="space-y-2"
-                          >
-                            <input
-                              type="hidden"
-                              name="proposalId"
-                              value={proposal.id}
-                            />
-                            <input
-                              type="hidden"
-                              name="decision"
-                              value="APPROVE"
-                            />
-                            <input
-                              name="comment"
-                              aria-label="Comentario opcional al aprobar"
-                              placeholder="Comentario opcional"
-                              className="field h-10 w-full px-3 text-sm"
-                            />
-                            <SubmitButton variant="secondary">
-                              <Check className="size-4" aria-hidden />
-                              Aprobar
-                            </SubmitButton>
-                          </form>
-                          <form
-                            action={voteProposalAction}
-                            className="space-y-2"
-                          >
-                            <input
-                              type="hidden"
-                              name="proposalId"
-                              value={proposal.id}
-                            />
-                            <input
-                              type="hidden"
-                              name="decision"
-                              value="REJECT"
-                            />
-                            <input
-                              name="comment"
-                              aria-label="Comentario opcional al rechazar"
-                              placeholder="Comentario opcional"
-                              className="field h-10 w-full px-3 text-sm"
-                            />
-                            <SubmitButton variant="danger">
-                              <X className="size-4" aria-hidden />
-                              Rechazar
-                            </SubmitButton>
-                          </form>
-                        </div>
+                        {proposal.createdByUserId === user.id ? (
+                          <p className="rounded-2xl bg-[var(--surface-muted)] p-3 text-sm text-[var(--muted)]">
+                            Otra persona debe aprobar o rechazar esta foto.
+                          </p>
+                        ) : (
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <form
+                              action={voteProposalAction}
+                              className="space-y-2"
+                            >
+                              <input
+                                type="hidden"
+                                name="proposalId"
+                                value={proposal.id}
+                              />
+                              <input
+                                type="hidden"
+                                name="decision"
+                                value="APPROVE"
+                              />
+                              <input
+                                name="comment"
+                                aria-label="Comentario opcional al aprobar foto"
+                                placeholder="Comentario opcional"
+                                className="field h-10 w-full px-3 text-sm"
+                              />
+                              <SubmitButton variant="secondary">
+                                <Check className="size-4" aria-hidden />
+                                Aprobar
+                              </SubmitButton>
+                            </form>
+                            <form
+                              action={voteProposalAction}
+                              className="space-y-2"
+                            >
+                              <input
+                                type="hidden"
+                                name="proposalId"
+                                value={proposal.id}
+                              />
+                              <input
+                                type="hidden"
+                                name="decision"
+                                value="REJECT"
+                              />
+                              <input
+                                name="comment"
+                                aria-label="Comentario opcional al rechazar foto"
+                                placeholder="Comentario opcional"
+                                className="field h-10 w-full px-3 text-sm"
+                              />
+                              <SubmitButton variant="danger">
+                                <X className="size-4" aria-hidden />
+                                Rechazar
+                              </SubmitButton>
+                            </form>
+                          </div>
+                        )}
                       </div>
                     </details>
                   );
                 })}
               </div>
             ) : null}
-          </section>
-
-          <section className="surface rounded-[28px] p-5">
-            <h2 className="flex items-center gap-2 text-xl font-black">
-              <Camera className="size-5" aria-hidden />
-              Galeria
-            </h2>
-            <p className="mt-2 text-sm text-[var(--muted)]">
-              Las fotos aprobadas rotan como foto de perfil del dia.
-            </p>
-            <ImageUploadForm
-              action={uploadImageAction}
-              personId={profile.person.id}
-            />
             <div className="mt-4 grid grid-cols-3 gap-2">
               {profile.media
                 .filter((asset) => asset.status === "APPROVED")

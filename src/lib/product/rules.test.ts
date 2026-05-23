@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  canAddOwnProfileContentDirectly,
   canAddNicknameDirectly,
   canManagePerson,
   canVoteOnProposal,
@@ -8,8 +9,10 @@ import {
   countEligibleRealUsers,
   getProposalThresholds,
   getVoteThreshold,
+  hasDuplicateNicknameValue,
   isSocialProfileVisible,
   mergeSiteCopy,
+  normalizeNicknameValue,
   normalizeVoteSettings,
   resolveDisplayName,
   shouldReplacePrimaryNickname,
@@ -174,13 +177,43 @@ describe("canAddNicknameDirectly", () => {
   });
 });
 
+describe("canAddOwnProfileContentDirectly", () => {
+  it("only lets a person add photos or social content directly to their own real profile", () => {
+    expect(
+      canAddOwnProfileContentDirectly({
+        actorId: "u1",
+        targetUserId: "u1",
+      }),
+    ).toBe(true);
+    expect(
+      canAddOwnProfileContentDirectly({
+        actorId: "u1",
+        targetUserId: "u2",
+      }),
+    ).toBe(false);
+    expect(
+      canAddOwnProfileContentDirectly({
+        actorId: "u1",
+        targetUserId: null,
+      }),
+    ).toBe(false);
+  });
+});
+
 describe("canVoteOnProposal", () => {
-  it("prevents creators from approving their own nickname proposals", () => {
+  it("prevents creators from approving their own nickname or photo proposals", () => {
     expect(
       canVoteOnProposal({
         actorId: "u1",
         proposalCreatorId: "u1",
         proposalType: "ADD_NICKNAME",
+      }),
+    ).toBe(false);
+    expect(
+      canVoteOnProposal({
+        actorId: "u1",
+        proposalCreatorId: "u1",
+        proposalType: "ADD_IMAGE",
       }),
     ).toBe(false);
     expect(
@@ -197,6 +230,17 @@ describe("canVoteOnProposal", () => {
         proposalType: "UPDATE_SITE_COPY",
       }),
     ).toBe(true);
+  });
+});
+
+describe("nickname duplicate normalization", () => {
+  it("treats case, accents and extra spaces as the same nickname", () => {
+    expect(normalizeNicknameValue("  PEPETRÓN   Máximo ")).toBe(
+      "pepetron maximo",
+    );
+    expect(hasDuplicateNicknameValue(["Pepetrón"], "pepetron")).toBe(true);
+    expect(hasDuplicateNicknameValue(["El   Profe"], "el profe")).toBe(true);
+    expect(hasDuplicateNicknameValue(["Paco"], "Paquito")).toBe(false);
   });
 });
 
