@@ -274,6 +274,51 @@ export async function proposeSiteCopyAction(formData: FormData) {
   revalidatePath("/proposals");
 }
 
+export async function updateSiteCopyFieldAction(formData: FormData) {
+  const { user } = await requireUser();
+  const before = await getAppSettings();
+  const field = getString(formData, "field");
+  const value = getString(formData, "value");
+  const allowedFields = [
+    "appName",
+    "loginEyebrow",
+    "loginHeroTitle",
+    "loginHeroSubtitle",
+    "dashboardTitle",
+    "dashboardSubtitle",
+  ] as const;
+
+  if (!allowedFields.includes(field as (typeof allowedFields)[number])) {
+    throw new Error("Texto no editable.");
+  }
+
+  const copy = siteCopySchema.parse({
+    ...before.siteCopy,
+    [field]: value,
+  });
+
+  await saveSiteCopy(copy, user.id);
+  await audit({
+    actorUserId: user.id,
+    entityType: "app_setting",
+    entityId: "site_copy",
+    action: "settings.site_copy_field_updated",
+    before: before.siteCopy,
+    after: copy,
+  });
+  await logActivity({
+    actorUserId: user.id,
+    type: "settings.site_copy_field_updated",
+    message: `${user.name} edito un texto de la web.`,
+    metadata: { field },
+  });
+
+  revalidatePath("/");
+  revalidatePath("/login");
+  revalidatePath("/admin");
+  revalidatePath("/proposals");
+}
+
 export async function updateSiteCopyAction(formData: FormData) {
   const { user } = await requireAdmin();
   const before = await getAppSettings();
@@ -364,6 +409,7 @@ export async function updateProfileAction(formData: FormData) {
     description: getString(formData, "description"),
     phrase: getString(formData, "phrase"),
     themeColor: getString(formData, "themeColor") || undefined,
+    themeStyle: getString(formData, "themeStyle") || undefined,
   });
 
   await db
@@ -534,7 +580,7 @@ export async function createPostAction(formData: FormData) {
     type: parentPostId ? "post.reply_created" : "post.created",
     message: parentPostId
       ? `${user.name} respondio una publicacion.`
-      : `${user.name} publico en el muro.`,
+      : `${user.name} publico una publicacion.`,
   });
 
   revalidatePath(`/people/${personId}`);

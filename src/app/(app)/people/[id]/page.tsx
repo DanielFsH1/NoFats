@@ -1,4 +1,5 @@
 import { EmptyState } from "@/components/app-shell";
+import { ImageUploadForm } from "@/components/image-upload-form";
 import { PersonAvatar } from "@/components/person-avatar";
 import { SubmitButton } from "@/components/submit-button";
 import {
@@ -9,13 +10,29 @@ import {
   nominateDailyNicknameAction,
   removeNicknameAction,
   updateProfileAction,
+  voteProposalAction,
 } from "@/lib/actions/app-actions";
 import { uploadImageAction } from "@/lib/actions/media-actions";
-import { getPersonProfile } from "@/lib/data/queries";
+import { getPersonProfile, getVotingThreshold } from "@/lib/data/queries";
+import { getAppSettings } from "@/lib/data/settings";
 import { formatDateTime } from "@/lib/product/dates";
-import { canManagePerson } from "@/lib/product/rules";
+import {
+  getProfileTheme,
+  profileThemeOptions,
+} from "@/lib/product/profile-themes";
+import { canManagePerson, getProposalThresholds } from "@/lib/product/rules";
 import { requireUser } from "@/lib/session";
-import { Camera, MessageCircle, Pencil, Sparkles, Trash2 } from "lucide-react";
+import {
+  CalendarPlus,
+  Camera,
+  Check,
+  ChevronDown,
+  MessageCircle,
+  Pencil,
+  Sparkles,
+  Trash2,
+  X,
+} from "lucide-react";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 
@@ -26,7 +43,12 @@ export default async function PersonPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const [{ user }, { id }] = await Promise.all([requireUser(), params]);
+  const [{ user }, { id }, eligibleUsers, settings] = await Promise.all([
+    requireUser(),
+    params,
+    getVotingThreshold(),
+    getAppSettings(),
+  ]);
   const profile = await getPersonProfile(id, {
     includeAdminProfiles: user.role === "ADMIN",
   });
@@ -44,13 +66,32 @@ export default async function PersonPage({
     (nickname) =>
       nickname.status === "APPROVED" || nickname.status === "TEMPORARY",
   );
+  const nicknameProposals = profile.pendingProposals.filter(
+    (proposal) =>
+      proposal.type === "ADD_NICKNAME" || proposal.type === "REMOVE_NICKNAME",
+  );
+  const thresholds = getProposalThresholds(
+    eligibleUsers,
+    settings.voteSettings,
+  );
+  const profileTheme = getProfileTheme(
+    profile.person.themeStyle,
+    profile.person.themeColor,
+  );
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <section className="overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow)]">
+      <section
+        className="overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow)]"
+        style={{
+          background: profileTheme.surface,
+          color: profileTheme.text,
+          borderColor: profileTheme.ring,
+        }}
+      >
         <div
           className="relative h-48 overflow-hidden sm:h-64"
-          style={{ backgroundColor: profile.person.themeColor }}
+          style={{ background: profileTheme.banner }}
         >
           {profile.person.dailyPhoto ? (
             <Image
@@ -82,22 +123,39 @@ export default async function PersonPage({
                 {profile.person.displayName}
               </h1>
               {profile.person.fullName ? (
-                <p className="mt-3 text-lg text-[var(--muted)]">
+                <p
+                  className="mt-3 text-lg"
+                  style={{ color: profileTheme.muted }}
+                >
                   {profile.person.fullName}
                 </p>
               ) : null}
-              <p className="mt-4 max-w-3xl text-[var(--muted)]">
+              <p
+                className="mt-4 max-w-3xl"
+                style={{ color: profileTheme.muted }}
+              >
                 {profile.person.description ||
                   profile.person.bio ||
                   "Sin descripcion todavia."}
               </p>
             </div>
-            <div className="rounded-3xl border border-[var(--border)] bg-[var(--surface-strong)] p-5">
-              <p className="text-sm font-bold text-[var(--muted)]">Frase</p>
+            <div
+              className="rounded-3xl border border-[var(--border)] p-5"
+              style={{
+                background: profileTheme.panel,
+                borderColor: profileTheme.ring,
+              }}
+            >
+              <p
+                className="text-sm font-bold"
+                style={{ color: profileTheme.muted }}
+              >
+                Frase
+              </p>
               <p className="mt-2 text-xl font-black">
                 {profile.person.phrase || "Pendiente de una frase legendaria."}
               </p>
-              <p className="mt-4 text-sm text-[var(--muted)]">
+              <p className="mt-4 text-sm" style={{ color: profileTheme.muted }}>
                 {approvedNicknames.length} apodos / {profile.media.length} fotos
               </p>
             </div>
@@ -110,7 +168,7 @@ export default async function PersonPage({
           <div className="surface rounded-[28px] p-5">
             <h2 className="flex items-center gap-2 text-2xl font-black">
               <MessageCircle className="size-5" aria-hidden />
-              Muro
+              Publicaciones
             </h2>
             <form action={createPostAction} className="mt-4 space-y-3">
               <input type="hidden" name="personId" value={profile.person.id} />
@@ -130,11 +188,18 @@ export default async function PersonPage({
                   className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-bold">{post.authorName}</p>
-                      <p className="text-xs text-[var(--muted)]">
-                        {formatDateTime(post.createdAt)}
-                      </p>
+                    <div className="flex items-center gap-3">
+                      <PersonAvatar
+                        dailyPhoto={post.authorDailyPhoto}
+                        name={post.authorName}
+                        size="sm"
+                      />
+                      <div>
+                        <p className="font-bold">{post.authorName}</p>
+                        <p className="text-xs text-[var(--muted)]">
+                          {formatDateTime(post.createdAt)}
+                        </p>
+                      </div>
                     </div>
                     {!post.deletedAt ? (
                       <form action={deletePostAction}>
@@ -177,7 +242,7 @@ export default async function PersonPage({
               ))}
               {profile.posts.length === 0 ? (
                 <EmptyState
-                  title="Muro vacio"
+                  title="Sin publicaciones"
                   body="Aun no hay publicaciones."
                 />
               ) : null}
@@ -201,12 +266,20 @@ export default async function PersonPage({
             </form>
             <div className="mt-4 space-y-2">
               {profile.comments.map((comment) => (
-                <p
+                <article
                   key={comment.id}
-                  className="soft-card rounded-2xl p-4 text-sm"
+                  className="soft-card flex gap-3 rounded-2xl p-4 text-sm"
                 >
-                  <strong>{comment.authorName}</strong> {comment.body}
-                </p>
+                  <PersonAvatar
+                    dailyPhoto={comment.authorDailyPhoto}
+                    name={comment.authorName}
+                    size="sm"
+                    className="!size-10 !rounded-xl !border-2 text-xs"
+                  />
+                  <p>
+                    <strong>{comment.authorName}</strong> {comment.body}
+                  </p>
+                </article>
               ))}
             </div>
           </div>
@@ -254,7 +327,7 @@ export default async function PersonPage({
                   className="field h-11 w-full px-3"
                 />
                 <label className="block text-sm font-semibold">
-                  Color
+                  Color base
                   <input
                     name="themeColor"
                     type="color"
@@ -262,6 +335,48 @@ export default async function PersonPage({
                     className="field mt-2 h-11 w-full p-1"
                   />
                 </label>
+                <fieldset className="space-y-2">
+                  <legend className="text-sm font-semibold">
+                    Estilo del perfil
+                  </legend>
+                  <div className="grid gap-2">
+                    {profileThemeOptions.map((option) => (
+                      <label
+                        key={option.value}
+                        className="flex cursor-pointer items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 transition hover:border-[var(--accent)]"
+                      >
+                        <input
+                          type="radio"
+                          name="themeStyle"
+                          value={option.value}
+                          defaultChecked={
+                            (profile.person.themeStyle ?? "AURORA") ===
+                            option.value
+                          }
+                          className="sr-only peer"
+                        />
+                        <span
+                          className="grid size-10 shrink-0 place-items-center rounded-xl border border-[var(--border)] shadow-sm peer-checked:ring-2 peer-checked:ring-[var(--accent)]"
+                          style={{
+                            background: getProfileTheme(
+                              option.value,
+                              option.accent,
+                            ).banner,
+                          }}
+                          aria-hidden
+                        />
+                        <span className="min-w-0">
+                          <span className="block text-sm font-black">
+                            {option.label}
+                          </span>
+                          <span className="block text-xs text-[var(--muted)]">
+                            {option.description}
+                          </span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
                 <SubmitButton>Guardar</SubmitButton>
               </form>
             </section>
@@ -310,8 +425,13 @@ export default async function PersonPage({
                           name="nicknameId"
                           value={nickname.id}
                         />
-                        <button className="rounded-lg px-2 py-1 text-xs font-bold text-[var(--accent)] hover:bg-[var(--surface-strong)]">
-                          manana
+                        <button
+                          type="submit"
+                          aria-label={`Postular "${nickname.value}" para apodo del dia siguiente`}
+                          title="Postular para el dia siguiente"
+                          className="inline-flex size-9 items-center justify-center rounded-full text-[var(--accent)] transition hover:bg-[var(--surface-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                        >
+                          <CalendarPlus className="size-4" aria-hidden />
                         </button>
                       </form>
                     ) : null}
@@ -321,14 +441,211 @@ export default async function PersonPage({
                         name="nicknameId"
                         value={nickname.id}
                       />
-                      <button className="rounded-lg px-2 py-1 text-xs font-bold text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]">
-                        quitar
+                      <button
+                        type="submit"
+                        aria-label={`Quitar el apodo "${nickname.value}"`}
+                        title="Quitar apodo"
+                        className="inline-flex size-9 items-center justify-center rounded-full text-[var(--danger)] transition hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--danger)]"
+                      >
+                        <Trash2 className="size-4" aria-hidden />
                       </button>
                     </form>
                   </div>
                 </div>
               ))}
             </div>
+            {nicknameProposals.length > 0 ? (
+              <div className="mt-5 space-y-2">
+                <p className="text-xs font-bold uppercase text-[var(--muted)]">
+                  Pendientes de aprobacion
+                </p>
+                {nicknameProposals.map((proposal) => {
+                  const payload = proposal.payload as {
+                    value?: unknown;
+                    nicknameId?: unknown;
+                  };
+                  const proposedNickname = String(
+                    payload.value ?? proposal.title,
+                  );
+                  const totalNeeded = Math.max(
+                    thresholds.approvalThreshold,
+                    thresholds.rejectionThreshold,
+                    1,
+                  );
+                  const approvalWidth = Math.min(
+                    100,
+                    Math.round((proposal.approvals / totalNeeded) * 100),
+                  );
+                  const rejectionWidth = Math.min(
+                    100,
+                    Math.round((proposal.rejections / totalNeeded) * 100),
+                  );
+
+                  return (
+                    <details
+                      key={proposal.id}
+                      className="group rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3"
+                    >
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+                        <span className="flex min-w-0 items-center gap-3">
+                          <PersonAvatar
+                            dailyPhoto={proposal.creatorDailyPhoto}
+                            name={proposal.creatorDisplayName}
+                            size="sm"
+                            className="!size-10 !rounded-xl !border-2 text-xs"
+                          />
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-black">
+                              {proposal.type === "ADD_NICKNAME"
+                                ? proposedNickname
+                                : `Quitar ${proposedNickname}`}
+                            </span>
+                            <span className="mt-1 block text-xs text-[var(--muted)]">
+                              {proposal.creatorDisplayName} propuso este cambio
+                            </span>
+                          </span>
+                        </span>
+                        <span className="flex items-center gap-2">
+                          <span className="rounded-full bg-[color-mix(in_srgb,var(--success)_12%,transparent)] px-2 py-1 text-xs font-black text-[var(--success)]">
+                            {proposal.approvals}/{thresholds.approvalThreshold}
+                          </span>
+                          <span className="rounded-full bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-2 py-1 text-xs font-black text-[var(--danger)]">
+                            {proposal.rejections}/
+                            {thresholds.rejectionThreshold}
+                          </span>
+                          <ChevronDown
+                            className="size-4 shrink-0 text-[var(--muted)] transition group-open:rotate-180"
+                            aria-hidden
+                          />
+                        </span>
+                      </summary>
+
+                      <div className="mt-4 space-y-4 border-t border-[var(--border)] pt-4">
+                        <div className="space-y-2">
+                          <div
+                            className="h-2 overflow-hidden rounded-full bg-[var(--surface-strong)]"
+                            aria-hidden
+                          >
+                            <div
+                              className="h-full rounded-full bg-[var(--success)]"
+                              style={{ width: `${approvalWidth}%` }}
+                            />
+                          </div>
+                          <div
+                            className="h-2 overflow-hidden rounded-full bg-[var(--surface-strong)]"
+                            aria-hidden
+                          >
+                            <div
+                              className="h-full rounded-full bg-[var(--danger)]"
+                              style={{ width: `${rejectionWidth}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2 text-sm">
+                          <p className="font-bold">Aprobaciones</p>
+                          {proposal.votes.length > 0 ? (
+                            proposal.votes.map((vote) => (
+                              <article
+                                key={vote.id}
+                                className="flex gap-3 rounded-xl bg-[var(--surface-muted)] px-3 py-2"
+                              >
+                                <PersonAvatar
+                                  dailyPhoto={vote.authorDailyPhoto}
+                                  name={vote.authorName}
+                                  size="sm"
+                                  className="!size-9 !rounded-xl !border-2 text-xs"
+                                />
+                                <p>
+                                  <strong>{vote.authorName}</strong>{" "}
+                                  <span
+                                    className={
+                                      vote.decision === "APPROVE"
+                                        ? "text-[var(--success)]"
+                                        : "text-[var(--danger)]"
+                                    }
+                                  >
+                                    {vote.decision === "APPROVE"
+                                      ? "aprobo"
+                                      : "rechazo"}
+                                  </span>
+                                  <span className="text-xs text-[var(--muted)]">
+                                    {" "}
+                                    {formatDateTime(vote.createdAt)}
+                                  </span>
+                                  {vote.comment ? (
+                                    <span className="block text-[var(--muted)]">
+                                      {vote.comment}
+                                    </span>
+                                  ) : null}
+                                </p>
+                              </article>
+                            ))
+                          ) : (
+                            <p className="text-[var(--muted)]">
+                              Aun no hay decisiones.
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <form
+                            action={voteProposalAction}
+                            className="space-y-2"
+                          >
+                            <input
+                              type="hidden"
+                              name="proposalId"
+                              value={proposal.id}
+                            />
+                            <input
+                              type="hidden"
+                              name="decision"
+                              value="APPROVE"
+                            />
+                            <input
+                              name="comment"
+                              aria-label="Comentario opcional al aprobar"
+                              placeholder="Comentario opcional"
+                              className="field h-10 w-full px-3 text-sm"
+                            />
+                            <SubmitButton variant="secondary">
+                              <Check className="size-4" aria-hidden />
+                              Aprobar
+                            </SubmitButton>
+                          </form>
+                          <form
+                            action={voteProposalAction}
+                            className="space-y-2"
+                          >
+                            <input
+                              type="hidden"
+                              name="proposalId"
+                              value={proposal.id}
+                            />
+                            <input
+                              type="hidden"
+                              name="decision"
+                              value="REJECT"
+                            />
+                            <input
+                              name="comment"
+                              aria-label="Comentario opcional al rechazar"
+                              placeholder="Comentario opcional"
+                              className="field h-10 w-full px-3 text-sm"
+                            />
+                            <SubmitButton variant="danger">
+                              <X className="size-4" aria-hidden />
+                              Rechazar
+                            </SubmitButton>
+                          </form>
+                        </div>
+                      </div>
+                    </details>
+                  );
+                })}
+              </div>
+            ) : null}
           </section>
 
           <section className="surface rounded-[28px] p-5">
@@ -339,23 +656,10 @@ export default async function PersonPage({
             <p className="mt-2 text-sm text-[var(--muted)]">
               Las fotos aprobadas rotan como foto de perfil del dia.
             </p>
-            <form action={uploadImageAction} className="mt-4 space-y-3">
-              <input type="hidden" name="personId" value={profile.person.id} />
-              <input
-                name="image"
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/gif"
-                required
-                className="block w-full text-sm"
-              />
-              <input
-                name="altText"
-                aria-label="Descripcion breve"
-                placeholder="Descripcion breve"
-                className="field h-11 w-full px-3"
-              />
-              <SubmitButton variant="secondary">Subir foto</SubmitButton>
-            </form>
+            <ImageUploadForm
+              action={uploadImageAction}
+              personId={profile.person.id}
+            />
             <div className="mt-4 grid grid-cols-3 gap-2">
               {profile.media
                 .filter((asset) => asset.status === "APPROVED")

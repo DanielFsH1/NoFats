@@ -22,7 +22,7 @@ export default async function PrivateLayout({
   return (
     <AppShell
       appName={siteCopy.appName}
-      user={{ name: displayName, role: user.role }}
+      user={{ name: displayName, role: user.role, personId: person.id }}
     >
       {children}
     </AppShell>

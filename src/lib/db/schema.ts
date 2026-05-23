@@ -143,6 +143,7 @@ export const people = pgTable(
     description: text("description").notNull().default(""),
     phrase: text("phrase").notNull().default(""),
     themeColor: text("theme_color").notNull().default("#1f8a70"),
+    themeStyle: text("theme_style").notNull().default("AURORA"),
     avatarMediaId: text("avatar_media_id"),
     bannerMediaId: text("banner_media_id"),
     primaryNicknameId: text("primary_nickname_id"),
@@ -201,7 +202,10 @@ export const nicknames = pgTable(
   },
   (table) => [
     index("nicknames_person_id_idx").on(table.personId),
-    uniqueIndex("nicknames_person_value_unique").on(table.personId, table.value),
+    uniqueIndex("nicknames_person_value_unique").on(
+      table.personId,
+      table.value,
+    ),
   ],
 );
 
@@ -252,7 +256,10 @@ export const proposalVotes = pgTable(
       .defaultNow(),
   },
   (table) => [
-    uniqueIndex("proposal_votes_once_unique").on(table.proposalId, table.userId),
+    uniqueIndex("proposal_votes_once_unique").on(
+      table.proposalId,
+      table.userId,
+    ),
     index("proposal_votes_proposal_idx").on(table.proposalId),
   ],
 );
@@ -314,7 +321,9 @@ export const comments = pgTable(
       .defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
-  (table) => [index("comments_subject_idx").on(table.subjectType, table.subjectId)],
+  (table) => [
+    index("comments_subject_idx").on(table.subjectType, table.subjectId),
+  ],
 );
 
 export const mediaAssets = pgTable(
@@ -428,7 +437,9 @@ export const auditLogs = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => [index("audit_logs_entity_idx").on(table.entityType, table.entityId)],
+  (table) => [
+    index("audit_logs_entity_idx").on(table.entityType, table.entityId),
+  ],
 );
 
 export const moderationActions = pgTable("moderation_actions", {

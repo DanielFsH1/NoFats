@@ -136,6 +136,22 @@ export async function getPeopleSummaries(
   });
 }
 
+function getPersonIdentity(
+  peopleSummaries: {
+    userId?: string | null;
+    displayName: string;
+    dailyPhoto?: { id: string; altText?: string | null } | null;
+  }[],
+  userId: string,
+) {
+  const person = peopleSummaries.find((summary) => summary.userId === userId);
+
+  return {
+    name: person?.displayName ?? null,
+    dailyPhoto: person?.dailyPhoto ?? null,
+  };
+}
+
 export async function getDashboardData() {
   const db = getDb();
   const dateKey = getDateKey();
@@ -185,12 +201,15 @@ export async function getDashboardData() {
     dateKey,
     people: peopleSummaries,
     pendingProposals,
-    recentPosts: recentPosts.map((post) => ({
-      ...post,
-      authorName:
-        peopleSummaries.find((person) => person.userId === post.authorUserId)
-          ?.displayName ?? post.authorName,
-    })),
+    recentPosts: recentPosts.map((post) => {
+      const author = getPersonIdentity(peopleSummaries, post.authorUserId);
+
+      return {
+        ...post,
+        authorName: author.name ?? post.authorName,
+        authorDailyPhoto: author.dailyPhoto,
+      };
+    }),
     recentActivity,
     recentMedia,
   };
@@ -271,9 +290,21 @@ export async function getPersonProfile(
       .limit(20),
   ]);
 
-  const pendingProposals = await db
-    .select()
+  const pendingProposalRows = await db
+    .select({
+      id: proposals.id,
+      type: proposals.type,
+      status: proposals.status,
+      title: proposals.title,
+      summary: proposals.summary,
+      payload: proposals.payload,
+      targetPersonId: proposals.targetPersonId,
+      createdAt: proposals.createdAt,
+      createdByUserId: proposals.createdByUserId,
+      createdByName: users.name,
+    })
     .from(proposals)
+    .innerJoin(users, eq(proposals.createdByUserId, users.id))
     .where(
       and(
         eq(proposals.targetPersonId, personId),
@@ -281,6 +312,23 @@ export async function getPersonProfile(
       ),
     )
     .orderBy(desc(proposals.createdAt));
+  const pendingProposalIds = pendingProposalRows.map((proposal) => proposal.id);
+  const pendingVoteRows =
+    pendingProposalIds.length > 0
+      ? await db
+          .select({
+            id: proposalVotes.id,
+            proposalId: proposalVotes.proposalId,
+            decision: proposalVotes.decision,
+            comment: proposalVotes.comment,
+            createdAt: proposalVotes.createdAt,
+            userId: users.id,
+            authorName: users.name,
+          })
+          .from(proposalVotes)
+          .innerJoin(users, eq(proposalVotes.userId, users.id))
+          .where(inArray(proposalVotes.proposalId, pendingProposalIds))
+      : [];
 
   const personByUserId = new Map(
     peopleSummaries
@@ -295,6 +343,8 @@ export async function getPersonProfile(
       ...post,
       authorName:
         personByUserId.get(post.authorUserId)?.displayName ?? post.authorName,
+      authorDailyPhoto:
+        personByUserId.get(post.authorUserId)?.dailyPhoto ?? null,
     })),
     media: personMedia,
     comments: profileComments.map((comment) => ({
@@ -302,9 +352,32 @@ export async function getPersonProfile(
       authorName:
         personByUserId.get(comment.authorUserId)?.displayName ??
         comment.authorName,
+      authorDailyPhoto:
+        personByUserId.get(comment.authorUserId)?.dailyPhoto ?? null,
     })),
     activity: profileActivity,
-    pendingProposals,
+    pendingProposals: pendingProposalRows.map((proposal) => {
+      const votes = pendingVoteRows
+        .filter((vote) => vote.proposalId === proposal.id)
+        .map((vote) => ({
+          ...vote,
+          authorName:
+            personByUserId.get(vote.userId)?.displayName ?? vote.authorName,
+          authorDailyPhoto: personByUserId.get(vote.userId)?.dailyPhoto ?? null,
+        }));
+
+      return {
+        ...proposal,
+        creatorDisplayName:
+          personByUserId.get(proposal.createdByUserId)?.displayName ??
+          proposal.createdByName,
+        creatorDailyPhoto:
+          personByUserId.get(proposal.createdByUserId)?.dailyPhoto ?? null,
+        approvals: votes.filter((vote) => vote.decision === "APPROVE").length,
+        rejections: votes.filter((vote) => vote.decision === "REJECT").length,
+        votes,
+      };
+    }),
   };
 }
 
@@ -356,8 +429,13 @@ export async function getProposalsWithVotes(status?: "PENDING") {
       creatorDisplayName:
         personByUserId.get(proposal.createdByUserId)?.displayName ??
         proposal.createdByName,
+      creatorDailyPhoto:
+        personByUserId.get(proposal.createdByUserId)?.dailyPhoto ?? null,
       targetDisplayName: proposal.targetPersonId
         ? (personById.get(proposal.targetPersonId)?.displayName ?? null)
+        : null,
+      targetDailyPhoto: proposal.targetPersonId
+        ? (personById.get(proposal.targetPersonId)?.dailyPhoto ?? null)
         : null,
       approvals: votes.filter((vote) => vote.decision === "APPROVE").length,
       rejections: votes.filter((vote) => vote.decision === "REJECT").length,
@@ -557,6 +635,7 @@ export async function getVoteCommentList(proposalId: string) {
   return votes.map((vote) => ({
     ...vote,
     authorName: personByUserId.get(vote.userId)?.displayName ?? vote.authorName,
+    authorDailyPhoto: personByUserId.get(vote.userId)?.dailyPhoto ?? null,
   }));
 }
 

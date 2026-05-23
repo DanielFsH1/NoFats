@@ -15,6 +15,13 @@
       "when": 1779422336999,
       "tag": "0001_cuddly_gauntlet",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779495013592,
+      "tag": "0002_fresh_leper_queen",
+      "breakpoints": true
     }
   ]
 }

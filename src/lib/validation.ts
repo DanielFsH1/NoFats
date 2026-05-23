@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { defaultSiteCopy } from "./product/rules";
+import { profileThemeStyles } from "./product/profile-themes";
 
 export const emailSchema = z.string().trim().email("Usa un correo valido.");
 export const passwordSchema = z
@@ -26,6 +27,7 @@ export const profileSchema = z.object({
     .string()
     .regex(/^#[0-9a-fA-F]{6}$/, "Usa un color hexadecimal valido.")
     .optional(),
+  themeStyle: z.enum(profileThemeStyles).default("AURORA"),
 });
 
 export const inviteRegistrationSchema = z
@@ -64,12 +66,7 @@ export const voteSettingsSchema = z.object({
 });
 
 export const siteCopySchema = z.object({
-  appName: z
-    .string()
-    .trim()
-    .min(1)
-    .max(40)
-    .default(defaultSiteCopy.appName),
+  appName: z.string().trim().min(1).max(40).default(defaultSiteCopy.appName),
   loginEyebrow: z
     .string()
     .trim()

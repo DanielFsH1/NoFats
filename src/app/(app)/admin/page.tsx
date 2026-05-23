@@ -12,7 +12,13 @@ import { getAppSettings } from "@/lib/data/settings";
 import { formatDateTime } from "@/lib/product/dates";
 import { roleLabel, slotStatusLabel } from "@/lib/product/presentation";
 import { requireAdmin } from "@/lib/session";
-import { Copy, PencilLine, SlidersHorizontal, UserPlus, UsersRound } from "lucide-react";
+import {
+  Copy,
+  PencilLine,
+  SlidersHorizontal,
+  UserPlus,
+  UsersRound,
+} from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -82,7 +88,10 @@ export default async function AdminPage({
           </p>
           <form action={updateVoteSettingsAction} className="mt-5 space-y-4">
             <div>
-              <label className="text-sm font-semibold" htmlFor="approvalPercentage">
+              <label
+                className="text-sm font-semibold"
+                htmlFor="approvalPercentage"
+              >
                 Porcentaje para aprobar
               </label>
               <input
@@ -97,7 +106,10 @@ export default async function AdminPage({
               />
             </div>
             <div>
-              <label className="text-sm font-semibold" htmlFor="rejectionPercentage">
+              <label
+                className="text-sm font-semibold"
+                htmlFor="rejectionPercentage"
+              >
                 Porcentaje para rechazar
               </label>
               <input
@@ -122,9 +134,13 @@ export default async function AdminPage({
           </h2>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
             El administrador puede aplicarlos directo; los usuarios tambien
-            pueden proponer cambios desde Votos.
+            pueden proponer cambios desde los perfiles o desde la seccion
+            correspondiente.
           </p>
-          <form action={updateSiteCopyAction} className="mt-5 grid gap-4 sm:grid-cols-2">
+          <form
+            action={updateSiteCopyAction}
+            className="mt-5 grid gap-4 sm:grid-cols-2"
+          >
             <div>
               <label className="text-sm font-semibold" htmlFor="adminAppName">
                 Titulo de la web
@@ -138,7 +154,10 @@ export default async function AdminPage({
               />
             </div>
             <div>
-              <label className="text-sm font-semibold" htmlFor="adminLoginEyebrow">
+              <label
+                className="text-sm font-semibold"
+                htmlFor="adminLoginEyebrow"
+              >
                 Etiqueta pequena
               </label>
               <input
@@ -150,7 +169,10 @@ export default async function AdminPage({
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="text-sm font-semibold" htmlFor="adminLoginHeroTitle">
+              <label
+                className="text-sm font-semibold"
+                htmlFor="adminLoginHeroTitle"
+              >
                 Mensaje principal del login
               </label>
               <textarea
@@ -162,7 +184,10 @@ export default async function AdminPage({
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="text-sm font-semibold" htmlFor="adminLoginHeroSubtitle">
+              <label
+                className="text-sm font-semibold"
+                htmlFor="adminLoginHeroSubtitle"
+              >
                 Comentario pequeno del login
               </label>
               <textarea
@@ -174,7 +199,10 @@ export default async function AdminPage({
               />
             </div>
             <div>
-              <label className="text-sm font-semibold" htmlFor="adminDashboardTitle">
+              <label
+                className="text-sm font-semibold"
+                htmlFor="adminDashboardTitle"
+              >
                 Titulo del inicio
               </label>
               <input
@@ -186,7 +214,10 @@ export default async function AdminPage({
               />
             </div>
             <div>
-              <label className="text-sm font-semibold" htmlFor="adminDashboardSubtitle">
+              <label
+                className="text-sm font-semibold"
+                htmlFor="adminDashboardSubtitle"
+              >
                 Comentario del inicio
               </label>
               <input
@@ -210,7 +241,10 @@ export default async function AdminPage({
             <UserPlus className="size-5" aria-hidden />
             Crear cupo real
           </h2>
-          <form action={createRegistrationSlotAction} className="mt-5 flex gap-3">
+          <form
+            action={createRegistrationSlotAction}
+            className="mt-5 flex gap-3"
+          >
             <input
               name="shortName"
               required
@@ -221,7 +255,10 @@ export default async function AdminPage({
           </form>
           <div className="mt-6 space-y-3">
             {overview.slots.map((slot) => (
-              <div key={slot.id} className="soft-card flex items-center justify-between gap-3 rounded-2xl p-4">
+              <div
+                key={slot.id}
+                className="soft-card flex items-center justify-between gap-3 rounded-2xl p-4"
+              >
                 <span>
                   <strong>{slot.shortName}</strong>
                   <span className="ml-2 text-xs text-[var(--muted)]">
@@ -292,7 +329,9 @@ export default async function AdminPage({
                         name="disabled"
                         value={user.disabled ? "false" : "true"}
                       />
-                      <SubmitButton variant={user.disabled ? "secondary" : "danger"}>
+                      <SubmitButton
+                        variant={user.disabled ? "secondary" : "danger"}
+                      >
                         {user.disabled ? "Activar" : "Desactivar"}
                       </SubmitButton>
                     </form>

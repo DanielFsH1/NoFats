@@ -75,12 +75,12 @@ export const defaultVoteSettings: VoteSettings = {
 export const defaultSiteCopy: SiteCopy = {
   appName: "NoFats",
   loginEyebrow: "Red social privada",
-  loginHeroTitle: "El muro del grupo, cerrado para el grupo.",
+  loginHeroTitle: "Las publicaciones del grupo, cerradas para el grupo.",
   loginHeroSubtitle:
     "Apodos, votaciones, fotos y publicaciones con acceso privado.",
   dashboardTitle: "NoFats",
   dashboardSubtitle:
-    "Hoy hay {count} perfiles con apodo activo. Las asignaciones son estables durante el dia y se recalculan manana.",
+    "Hoy hay {count} perfiles con apodo activo. Las asignaciones son estables durante el dia y se recalculan al cambiar de dia.",
 };
 
 export function getVoteThreshold(realUserCount: number, percentage = 30) {

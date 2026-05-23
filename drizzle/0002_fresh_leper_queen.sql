@@ -1,0 +1,1 @@
+ALTER TABLE "people" ADD COLUMN "theme_style" text DEFAULT 'AURORA' NOT NULL;

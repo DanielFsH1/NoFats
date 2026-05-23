@@ -1,4 +1,5 @@
 import { EmptyState } from "@/components/app-shell";
+import { PersonAvatar } from "@/components/person-avatar";
 import { SubmitButton } from "@/components/submit-button";
 import {
   addProposalCommentAction,
@@ -32,7 +33,10 @@ export default async function ProposalsPage() {
     getVotingThreshold(),
     getAppSettings(),
   ]);
-  const thresholds = getProposalThresholds(eligibleUsers, settings.voteSettings);
+  const thresholds = getProposalThresholds(
+    eligibleUsers,
+    settings.voteSettings,
+  );
   const proposalCards = await Promise.all(
     proposals.map(async (proposal) => ({
       proposal,
@@ -62,8 +66,14 @@ export default async function ProposalsPage() {
             <Plus className="size-5" aria-hidden />
             Proponer perfil
           </h2>
-          <form action={proposeFictionalPersonAction} className="mt-4 space-y-3">
-            <label className="block text-sm font-semibold" htmlFor="displayName">
+          <form
+            action={proposeFictionalPersonAction}
+            className="mt-4 space-y-3"
+          >
+            <label
+              className="block text-sm font-semibold"
+              htmlFor="displayName"
+            >
               Nombre visible
             </label>
             <input
@@ -102,7 +112,10 @@ export default async function ProposalsPage() {
               defaultValue={settings.siteCopy.appName}
               className="field h-11 w-full px-3"
             />
-            <label className="block text-sm font-semibold" htmlFor="loginEyebrow">
+            <label
+              className="block text-sm font-semibold"
+              htmlFor="loginEyebrow"
+            >
               Etiqueta pequena del login
             </label>
             <input
@@ -112,7 +125,10 @@ export default async function ProposalsPage() {
               defaultValue={settings.siteCopy.loginEyebrow}
               className="field h-11 w-full px-3"
             />
-            <label className="block text-sm font-semibold" htmlFor="loginHeroTitle">
+            <label
+              className="block text-sm font-semibold"
+              htmlFor="loginHeroTitle"
+            >
               Mensaje principal del login
             </label>
             <textarea
@@ -135,7 +151,10 @@ export default async function ProposalsPage() {
               defaultValue={settings.siteCopy.loginHeroSubtitle}
               className="field min-h-20 w-full p-3"
             />
-            <label className="block text-sm font-semibold" htmlFor="dashboardTitle">
+            <label
+              className="block text-sm font-semibold"
+              htmlFor="dashboardTitle"
+            >
               Titulo del inicio
             </label>
             <input
@@ -182,11 +201,17 @@ export default async function ProposalsPage() {
           );
 
           return (
-            <article key={proposal.id} className="surface overflow-hidden rounded-[28px]">
+            <article
+              id={proposal.id}
+              key={proposal.id}
+              className="surface overflow-hidden rounded-[28px]"
+            >
               <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_220px]">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="pill">{proposalTypeLabel(proposal.type)}</span>
+                    <span className="pill">
+                      {proposalTypeLabel(proposal.type)}
+                    </span>
                     <span className="pill pill-muted">
                       {proposalStatusLabel(proposal.status)}
                     </span>
@@ -243,8 +268,15 @@ export default async function ProposalsPage() {
 
               {proposal.status === "PENDING" ? (
                 <div className="grid gap-3 border-y border-[var(--border)] bg-[var(--surface-muted)] p-4 md:grid-cols-2">
-                  <form action={voteProposalAction} className="soft-card rounded-2xl p-4">
-                    <input type="hidden" name="proposalId" value={proposal.id} />
+                  <form
+                    action={voteProposalAction}
+                    className="soft-card rounded-2xl p-4"
+                  >
+                    <input
+                      type="hidden"
+                      name="proposalId"
+                      value={proposal.id}
+                    />
                     <input type="hidden" name="decision" value="APPROVE" />
                     <textarea
                       name="comment"
@@ -258,8 +290,15 @@ export default async function ProposalsPage() {
                       </SubmitButton>
                     </div>
                   </form>
-                  <form action={voteProposalAction} className="soft-card rounded-2xl p-4">
-                    <input type="hidden" name="proposalId" value={proposal.id} />
+                  <form
+                    action={voteProposalAction}
+                    className="soft-card rounded-2xl p-4"
+                  >
+                    <input
+                      type="hidden"
+                      name="proposalId"
+                      value={proposal.id}
+                    />
                     <input type="hidden" name="decision" value="REJECT" />
                     <textarea
                       name="comment"
@@ -286,13 +325,21 @@ export default async function ProposalsPage() {
                     {voteComments
                       .filter((vote) => vote.comment)
                       .map((vote) => (
-                        <p key={vote.id} className="text-sm">
-                          <strong>{vote.authorName}</strong>{" "}
-                          <span className="text-xs text-[var(--muted)]">
-                            {voteDecisionLabel(vote.decision)}
-                          </span>
-                          : {vote.comment}
-                        </p>
+                        <article key={vote.id} className="flex gap-3 text-sm">
+                          <PersonAvatar
+                            dailyPhoto={vote.authorDailyPhoto}
+                            name={vote.authorName}
+                            size="sm"
+                            className="!size-9 !rounded-xl !border-2 text-xs"
+                          />
+                          <p>
+                            <strong>{vote.authorName}</strong>{" "}
+                            <span className="text-xs text-[var(--muted)]">
+                              {voteDecisionLabel(vote.decision)}
+                            </span>
+                            : {vote.comment}
+                          </p>
+                        </article>
                       ))}
                   </div>
                 </div>
