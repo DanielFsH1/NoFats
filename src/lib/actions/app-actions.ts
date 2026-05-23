@@ -17,6 +17,7 @@ import {
   users,
 } from "@/lib/db/schema";
 import { getVotingThreshold } from "@/lib/data/queries";
+import { rejectExpiredProposals } from "@/lib/data/proposal-expiration";
 import {
   getAppSettings,
   saveSiteCopy,
@@ -35,6 +36,7 @@ import {
   normalizeVoteSettings,
   shouldReplacePrimaryNickname,
 } from "@/lib/product/rules";
+import { isProposalExpired } from "@/lib/product/proposal-expiration";
 import { createInviteToken, hashInviteToken } from "@/lib/security/token";
 import { requireAdmin, requireUser } from "@/lib/session";
 import { getBaseUrl } from "@/lib/urls";
@@ -130,7 +132,9 @@ async function assertNicknameIsUnique(
     db
       .select({ value: nicknames.value })
       .from(nicknames)
-      .where(and(eq(nicknames.personId, personId), isNull(nicknames.deletedAt))),
+      .where(
+        and(eq(nicknames.personId, personId), isNull(nicknames.deletedAt)),
+      ),
     db
       .select({ id: proposals.id, payload: proposals.payload })
       .from(proposals)
@@ -152,11 +156,16 @@ async function assertNicknameIsUnique(
 
   if (
     hasDuplicateNicknameValue(
-      [...existingNicknames.map((nickname) => nickname.value), ...pendingValues],
+      [
+        ...existingNicknames.map((nickname) => nickname.value),
+        ...pendingValues,
+      ],
       normalizeNicknameValue(value),
     )
   ) {
-    throw new Error("Ese apodo ya existe o ya esta propuesto para este perfil.");
+    throw new Error(
+      "Ese apodo ya existe o ya esta propuesto para este perfil.",
+    );
   }
 }
 
@@ -762,6 +771,7 @@ export async function addProposalCommentAction(formData: FormData) {
 
 export async function voteProposalAction(formData: FormData) {
   const { user } = await requireUser();
+  await rejectExpiredProposals();
   const proposalId = getString(formData, "proposalId");
   const decision =
     getString(formData, "decision") === "REJECT" ? "REJECT" : "APPROVE";
@@ -776,6 +786,18 @@ export async function voteProposalAction(formData: FormData) {
 
   if (!proposal || proposal.status !== "PENDING") {
     throw new Error("La propuesta ya no esta pendiente.");
+  }
+
+  if (isProposalExpired(proposal.createdAt)) {
+    await db
+      .update(proposals)
+      .set({
+        status: "REJECTED",
+        resolvedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(proposals.id, proposalId));
+    throw new Error("Esta propuesta expiro despues de 48 horas.");
   }
 
   if (
@@ -807,6 +829,7 @@ export async function voteProposalAction(formData: FormData) {
 }
 
 async function evaluateProposal(proposalId: string) {
+  await rejectExpiredProposals();
   const db = getDb();
   const [proposal] = await db
     .select()

@@ -2,7 +2,7 @@
 
 import { SubmitButton } from "@/components/submit-button";
 import { ImagePlus } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export function ImageUploadForm({
   action,
@@ -13,6 +13,15 @@ export function ImageUploadForm({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState("");
+  const [previewUrl, setPreviewUrl] = useState("");
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   return (
     <form action={action} className="mt-4 space-y-3">
@@ -25,7 +34,9 @@ export function ImageUploadForm({
         required
         className="sr-only"
         onChange={(event) => {
-          setFileName(event.currentTarget.files?.[0]?.name ?? "");
+          const file = event.currentTarget.files?.[0];
+          setFileName(file?.name ?? "");
+          setPreviewUrl(file ? URL.createObjectURL(file) : "");
         }}
       />
       <button
@@ -36,6 +47,16 @@ export function ImageUploadForm({
         <ImagePlus className="size-4" aria-hidden />
         {fileName || "Seleccionar foto"}
       </button>
+      {previewUrl ? (
+        <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-muted)]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={previewUrl}
+            alt="Vista previa de la foto seleccionada"
+            className="aspect-video w-full object-cover"
+          />
+        </div>
+      ) : null}
       <input
         name="altText"
         aria-label="Descripcion breve"

@@ -23,6 +23,7 @@ import {
 import { getProposalThresholds } from "@/lib/product/rules";
 import { requireUser } from "@/lib/session";
 import { Check, MessageCircle, PencilLine, Plus, X } from "lucide-react";
+import Image from "next/image";
 
 export const dynamic = "force-dynamic";
 
@@ -222,6 +223,25 @@ export default async function ProposalsPage() {
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
                     {displaySummary}
                   </p>
+                  {proposal.type === "ADD_IMAGE" &&
+                  proposal.status === "PENDING" ? (
+                    <a
+                      href={`/api/proposal-media/${proposal.id}?size=full`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-4 block max-w-xl overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-muted)]"
+                      aria-label={`Ver foto propuesta: ${displaySummary}`}
+                    >
+                      <Image
+                        src={`/api/proposal-media/${proposal.id}`}
+                        alt={displaySummary}
+                        width={640}
+                        height={360}
+                        unoptimized
+                        className="aspect-video w-full object-cover"
+                      />
+                    </a>
+                  ) : null}
                 </div>
 
                 <div className="soft-card rounded-2xl p-4">

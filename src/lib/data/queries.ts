@@ -13,6 +13,7 @@ import {
   users,
 } from "@/lib/db/schema";
 import { materializeDailyNicknames } from "@/lib/data/daily";
+import { rejectExpiredProposals } from "@/lib/data/proposal-expiration";
 import { getDateKey } from "@/lib/product/dates";
 import {
   chooseDailyMedia,
@@ -34,7 +35,10 @@ export async function getPeopleSummaries(
   const resolvedOptions =
     typeof dateKeyOrOptions === "string" ? options : dateKeyOrOptions;
 
-  await materializeDailyNicknames(dateKey);
+  await Promise.all([
+    materializeDailyNicknames(dateKey),
+    rejectExpiredProposals(),
+  ]);
 
   const db = getDb();
   const [allRows, adminRows] = await Promise.all([
@@ -102,6 +106,22 @@ export async function getPeopleSummaries(
             ),
           )
       : [];
+  const pendingProposalRows =
+    ids.length > 0
+      ? await db
+          .select({
+            personId: proposals.targetPersonId,
+            value: count(),
+          })
+          .from(proposals)
+          .where(
+            and(
+              inArray(proposals.targetPersonId, ids),
+              eq(proposals.status, "PENDING"),
+            ),
+          )
+          .groupBy(proposals.targetPersonId)
+      : [];
 
   return rows.map((person) => {
     const personNicknames = nicknameRows.filter(
@@ -137,6 +157,10 @@ export async function getPeopleSummaries(
         (nickname) => nickname.status === "APPROVED",
       ).length,
       photoCount: personMedia.length,
+      pendingProposalCount:
+        Number(
+          pendingProposalRows.find((row) => row.personId === person.id)?.value,
+        ) || 0,
     };
   });
 }
@@ -387,6 +411,8 @@ export async function getPersonProfile(
 }
 
 export async function getProposalsWithVotes(status?: "PENDING") {
+  await rejectExpiredProposals();
+
   const db = getDb();
   const [rows, peopleSummaries] = await Promise.all([
     db

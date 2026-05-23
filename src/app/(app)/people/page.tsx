@@ -28,8 +28,16 @@ export default async function PeoplePage() {
             <Link
               href={`/people/${person.id}`}
               key={person.id}
-              className="group overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--surface)] shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl"
+              className="group relative overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--surface)] shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl"
             >
+              {person.pendingProposalCount > 0 ? (
+                <span
+                  className="absolute right-3 top-3 z-10 grid min-h-6 min-w-6 place-items-center rounded-full bg-[var(--danger)] px-2 text-xs font-black text-white shadow-[var(--shadow-soft)]"
+                  aria-label={`${person.pendingProposalCount} pendientes por aprobar`}
+                >
+                  {person.pendingProposalCount}
+                </span>
+              ) : null}
               <div
                 className="h-28 opacity-95"
                 style={{
