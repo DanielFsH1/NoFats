@@ -40,7 +40,7 @@ export function LoginForm() {
         </span>
       </label>
       {state.message ? (
-        <p className="rounded-xl border border-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,var(--surface))] px-3 py-2 text-sm text-[var(--danger)]">
+        <p className="animate-shake rounded-xl border border-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,var(--surface))] px-3 py-2 text-sm text-[var(--danger)]">
           {state.message}
         </p>
       ) : null}
@@ -55,7 +55,7 @@ function LoginButton() {
   return (
     <button
       disabled={pending}
-      className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 font-semibold text-[var(--accent-contrast)] transition hover:bg-[var(--accent-hover)] disabled:bg-slate-400 disabled:text-white"
+      className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 font-semibold text-[var(--accent-contrast)] shadow-sm transition-all duration-200 hover:bg-[var(--accent-hover)] hover:shadow-md active:scale-[0.98] disabled:bg-slate-400 disabled:text-white disabled:shadow-none"
     >
       {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
       Entrar

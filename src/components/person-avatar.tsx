@@ -27,7 +27,7 @@ export function PersonAvatar({
 
   return (
     <div
-      className={`avatar-frame relative grid shrink-0 place-items-center overflow-hidden border-4 border-[var(--surface)] bg-[var(--surface-strong)] font-black ${sizeClasses[size]} ${className}`}
+      className={`avatar-frame relative grid shrink-0 place-items-center overflow-hidden border-4 border-[var(--surface)] bg-[var(--surface-strong)] font-black shadow-[0_2px_8px_rgb(0_0_0/0.1)] transition-shadow duration-200 ${sizeClasses[size]} ${className}`}
     >
       {dailyPhoto ? (
         <Image

@@ -26,7 +26,7 @@ export function SubmitButton({
     <button
       type="submit"
       disabled={pending || disabled}
-      className={`inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-55 ${classes[variant]}`}
+      className={`inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold shadow-sm transition-all duration-200 hover:shadow-md active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-55 disabled:shadow-none disabled:active:scale-100 ${classes[variant]}`}
     >
       {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
       {children}

@@ -26,20 +26,9 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function navLinkClass(active: boolean, admin = false) {
-  const base =
-    "inline-flex min-h-9 shrink-0 snap-start items-center gap-1.5 rounded-xl px-2.5 text-xs font-semibold transition sm:min-h-10 sm:gap-2 sm:px-3 sm:text-sm";
+/* ── Sidebar variant (desktop lg+) ──────────────── */
 
-  if (active) {
-    return `${base} bg-[var(--surface-strong)] text-[var(--foreground)] shadow-sm`;
-  }
-
-  return `${base} ${
-    admin ? "text-[var(--accent-ink)]" : "text-[var(--muted)]"
-  } hover:bg-[var(--surface)] hover:text-[var(--foreground)]`;
-}
-
-export function MainNav({
+function SidebarNav({
   personId,
   role,
 }: {
@@ -49,10 +38,7 @@ export function MainNav({
   const pathname = usePathname();
 
   return (
-    <nav
-      aria-label="Navegacion principal"
-      className="-mx-3 flex snap-x flex-nowrap gap-1.5 overflow-x-auto px-3 pb-0.5 [scrollbar-width:none] sm:-mx-6 sm:gap-2 sm:px-6 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0 lg:pb-0 [&::-webkit-scrollbar]:hidden"
-    >
+    <div className="flex flex-col gap-1">
       {nav.map((item) => {
         const active = isActivePath(pathname, item.href);
 
@@ -61,31 +47,149 @@ export function MainNav({
             key={item.href}
             href={item.href}
             aria-current={active ? "page" : undefined}
-            className={navLinkClass(active)}
+            className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200 ${
+              active
+                ? "bg-[color-mix(in_srgb,var(--accent)_10%,var(--surface-strong))] text-[var(--foreground)]"
+                : "text-[var(--muted)] hover:bg-[var(--surface-strong)] hover:text-[var(--foreground)]"
+            }`}
           >
-            <item.icon className="size-4" aria-hidden />
+            {active ? (
+              <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-[var(--accent)]" />
+            ) : null}
+            <item.icon
+              className={`size-[18px] transition-colors ${
+                active ? "text-[var(--accent)]" : "text-[var(--muted)] group-hover:text-[var(--foreground)]"
+              }`}
+              aria-hidden
+            />
             {item.label}
           </Link>
         );
       })}
+
+      <div className="my-2 border-t border-[var(--border)]" />
+
       <Link
         href={`/people/${personId}`}
-        aria-current={isActivePath(pathname, `/people/${personId}`) ? "page" : undefined}
-        className={navLinkClass(isActivePath(pathname, `/people/${personId}`))}
+        aria-current={
+          isActivePath(pathname, `/people/${personId}`) ? "page" : undefined
+        }
+        className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200 ${
+          isActivePath(pathname, `/people/${personId}`)
+            ? "bg-[color-mix(in_srgb,var(--accent)_10%,var(--surface-strong))] text-[var(--foreground)]"
+            : "text-[var(--muted)] hover:bg-[var(--surface-strong)] hover:text-[var(--foreground)]"
+        }`}
       >
-        <Settings className="size-4" aria-hidden />
+        {isActivePath(pathname, `/people/${personId}`) ? (
+          <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-[var(--accent)]" />
+        ) : null}
+        <Settings
+          className={`size-[18px] ${
+            isActivePath(pathname, `/people/${personId}`)
+              ? "text-[var(--accent)]"
+              : "text-[var(--muted)]"
+          }`}
+          aria-hidden
+        />
         Mi perfil
       </Link>
+
       {role === "ADMIN" ? (
         <Link
           href="/admin"
-          aria-current={isActivePath(pathname, "/admin") ? "page" : undefined}
-          className={navLinkClass(isActivePath(pathname, "/admin"), true)}
+          aria-current={
+            isActivePath(pathname, "/admin") ? "page" : undefined
+          }
+          className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200 ${
+            isActivePath(pathname, "/admin")
+              ? "bg-[color-mix(in_srgb,var(--accent)_10%,var(--surface-strong))] text-[var(--foreground)]"
+              : "text-[var(--accent-ink)] hover:bg-[var(--surface-strong)] hover:text-[var(--foreground)]"
+          }`}
         >
-          <Shield className="size-4" aria-hidden />
+          {isActivePath(pathname, "/admin") ? (
+            <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-[var(--accent)]" />
+          ) : null}
+          <Shield
+            className={`size-[18px] ${
+              isActivePath(pathname, "/admin")
+                ? "text-[var(--accent)]"
+                : "text-[var(--accent-ink)]"
+            }`}
+            aria-hidden
+          />
           Admin
         </Link>
       ) : null}
-    </nav>
+    </div>
   );
+}
+
+/* ── Bottom bar variant (mobile <lg) ────────────── */
+
+function BottomBarNav({
+  personId,
+  role,
+}: {
+  personId: string;
+  role: "ADMIN" | "USER";
+}) {
+  const pathname = usePathname();
+
+  const allItems = [
+    ...nav,
+    { href: `/people/${personId}`, label: "Perfil", icon: Settings },
+    ...(role === "ADMIN"
+      ? [{ href: "/admin", label: "Admin", icon: Shield }]
+      : []),
+  ];
+
+  return (
+    <div className="flex items-center justify-around px-1 py-1.5">
+      {allItems.map((item) => {
+        const active = isActivePath(pathname, item.href);
+
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            aria-current={active ? "page" : undefined}
+            className={`relative flex flex-col items-center gap-0.5 rounded-xl px-3 py-1.5 transition-all duration-200 active:scale-90 ${
+              active
+                ? "text-[var(--accent)]"
+                : "text-[var(--muted)] hover:text-[var(--foreground)]"
+            }`}
+          >
+            <item.icon
+              className={`size-5 ${active ? "text-[var(--accent)]" : ""}`}
+              aria-hidden
+            />
+            <span className="text-[10px] font-semibold leading-tight">
+              {item.label}
+            </span>
+            {active ? (
+              <span className="absolute -top-0.5 left-1/2 h-[3px] w-4 -translate-x-1/2 rounded-full bg-[var(--accent)]" />
+            ) : null}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── Main export ─────────────────────────────────── */
+
+export function MainNav({
+  personId,
+  role,
+  variant,
+}: {
+  personId: string;
+  role: "ADMIN" | "USER";
+  variant: "sidebar" | "bottom-bar";
+}) {
+  if (variant === "sidebar") {
+    return <SidebarNav personId={personId} role={role} />;
+  }
+
+  return <BottomBarNav personId={personId} role={role} />;
 }

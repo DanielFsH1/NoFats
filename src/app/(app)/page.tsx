@@ -25,14 +25,19 @@ export default async function DashboardPage() {
   const dailyImagePeople = data.people.filter((person) => person.dailyPhoto);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8">
-      <section className="grid gap-5 lg:grid-cols-2">
-        <div className="surface rounded-[28px] p-6 sm:p-8">
+    <div className="mx-auto max-w-6xl space-y-6 sm:space-y-8">
+      <section className="grid gap-4 sm:gap-5 lg:grid-cols-2">
+        <div className="surface rounded-[28px] p-4 sm:p-6 lg:p-8">
           <div className="flex items-center gap-2 text-sm font-bold text-[var(--accent)]">
             <Sparkles className="size-4" aria-hidden />
-            Apodos del dia
+            {siteCopy.dashboardTitle}
+            <EditableSiteText
+              field="dashboardTitle"
+              value={siteCopy.dashboardTitle}
+              label="Editar titulo del inicio"
+            />
           </div>
-          <h1 className="mt-3 text-4xl font-black sm:text-6xl">
+          <h1 className="mt-3 text-3xl font-black sm:text-4xl lg:text-6xl">
             {dailyPeople[0]?.displayName ?? "Apodos del dia"}
           </h1>
           <div className="mt-4 max-w-2xl text-[var(--muted)]">
@@ -54,7 +59,7 @@ export default async function DashboardPage() {
               <Link
                 key={person.id}
                 href={`/people/${person.id}`}
-                className="soft-card flex items-center gap-3 rounded-2xl p-4 transition hover:-translate-y-0.5 hover:shadow-md"
+                className="soft-card flex items-center gap-3 rounded-2xl p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
               >
                 <PersonAvatar
                   dailyPhoto={person.dailyPhoto}
@@ -73,6 +78,7 @@ export default async function DashboardPage() {
             ))}
             {dailyPeople.length === 0 ? (
               <EmptyState
+                icon={Sparkles}
                 title="Sin apodos activos"
                 body="Cuando haya apodos aprobados, apareceran aqui."
               />
@@ -80,12 +86,12 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        <div className="surface rounded-[28px] p-6">
+        <div className="surface rounded-[28px] p-4 sm:p-6">
           <div className="flex items-center gap-2 text-sm font-bold text-[var(--accent)]">
             <Camera className="size-4" aria-hidden />
             Imagenes del dia
           </div>
-          <h2 className="mt-3 text-3xl font-black sm:text-5xl">
+          <h2 className="mt-3 text-2xl font-black sm:text-3xl lg:text-5xl">
             Fotos que cambian hoy
           </h2>
           <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
@@ -96,7 +102,7 @@ export default async function DashboardPage() {
               <Link
                 key={person.id}
                 href={`/people/${person.id}`}
-                className="group relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]"
+                className="group relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] card-interactive"
               >
                 {person.dailyPhoto ? (
                   <Image
@@ -122,6 +128,7 @@ export default async function DashboardPage() {
             {dailyImagePeople.length === 0 ? (
               <div className="col-span-2">
                 <EmptyState
+                  icon={Camera}
                   title="Sin imagenes activas"
                   body="Cuando haya fotos aprobadas, apareceran aqui."
                 />
@@ -131,7 +138,7 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <section className="surface rounded-[28px] p-6">
+      <section className="surface rounded-[28px] p-4 sm:p-6">
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-2xl font-black">Personas</h2>
           <Link
@@ -141,19 +148,19 @@ export default async function DashboardPage() {
             Ver todas
           </Link>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {data.people.slice(0, 9).map((person) => {
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {data.people.slice(0, 12).map((person) => {
             const theme = getProfileTheme(person.themeStyle, person.themeColor);
 
             return (
               <Link
-                href={`/people/${person.id}`}
                 key={person.id}
-                className="group relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]"
+                href={`/people/${person.id}`}
+                className="group relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] card-interactive"
               >
                 {person.pendingProposalCount > 0 ? (
                   <span
-                    className="absolute right-3 top-3 z-10 grid min-h-6 min-w-6 place-items-center rounded-full bg-[var(--danger)] px-2 text-xs font-black text-[var(--danger-contrast)] shadow-[var(--shadow-soft)]"
+                    className="animate-pulse-badge absolute right-3 top-3 z-10 grid min-h-6 min-w-6 place-items-center rounded-full bg-[var(--danger)] px-2 text-xs font-black text-[var(--danger-contrast)] shadow-[var(--shadow-soft)]"
                     aria-label={`${person.pendingProposalCount} pendientes por aprobar`}
                   >
                     {person.pendingProposalCount}
@@ -179,12 +186,12 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <section className="surface rounded-[28px] p-6">
+      <section className="surface rounded-[28px] p-4 sm:p-6">
         <h2 className="flex items-center gap-2 text-2xl font-black">
           <Camera className="size-5" aria-hidden />
           Fotos recientes
         </h2>
-        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+        <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
           {data.recentMedia.map((asset) => (
             <Image
               key={asset.id}
@@ -193,13 +200,14 @@ export default async function DashboardPage() {
               width={180}
               height={180}
               unoptimized
-              className="aspect-square rounded-xl object-cover"
+              className="aspect-square rounded-xl object-cover transition-all duration-200 hover:scale-[1.03]"
             />
           ))}
         </div>
         {data.recentMedia.length === 0 ? (
           <div className="mt-4">
             <EmptyState
+              icon={Camera}
               title="Sin fotos recientes"
               body="Las fotos aprobadas apareceran aqui."
             />
@@ -207,7 +215,7 @@ export default async function DashboardPage() {
         ) : null}
       </section>
 
-      <section className="surface rounded-[28px] p-6">
+      <section className="surface rounded-[28px] p-4 sm:p-6">
         <h2 className="flex items-center gap-2 text-2xl font-black">
           <MessageCircle className="size-5" aria-hidden />
           Publicaciones
@@ -225,7 +233,7 @@ export default async function DashboardPage() {
         </form>
         <div className="mt-5 grid gap-3 lg:grid-cols-2">
           {data.recentPosts.map((post) => (
-            <article key={post.id} className="soft-card rounded-2xl p-4">
+            <article key={post.id} className="soft-card rounded-2xl p-4 transition-all duration-200 hover:shadow-md">
               <p className="text-sm">{post.body}</p>
               <div className="mt-3 flex items-center gap-2">
                 <PersonAvatar
@@ -247,6 +255,7 @@ export default async function DashboardPage() {
         {data.recentPosts.length === 0 ? (
           <div className="mt-4">
             <EmptyState
+              icon={MessageCircle}
               title="Sin publicaciones"
               body="Cuando alguien publique, aparecera aqui."
             />
@@ -254,7 +263,7 @@ export default async function DashboardPage() {
         ) : null}
       </section>
 
-      <section className="surface rounded-[28px] p-6">
+      <section className="surface rounded-[28px] p-4 sm:p-6">
         <h2 className="text-xl font-black">Pendientes</h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
           Votaciones que necesitan ojos del grupo.
@@ -264,7 +273,7 @@ export default async function DashboardPage() {
             <Link
               key={proposal.id}
               href={getPendingProposalHref(proposal)}
-              className="soft-card flex items-center justify-between gap-3 rounded-2xl p-4"
+              className="soft-card flex items-center justify-between gap-3 rounded-2xl p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
             >
               <span>
                 <span className="block text-sm font-bold">
@@ -282,6 +291,7 @@ export default async function DashboardPage() {
           ))}
           {data.pendingProposals.length === 0 ? (
             <EmptyState
+              icon={ChevronRight}
               title="Sin votaciones pendientes"
               body="El grupo esta en paz por ahora."
             />

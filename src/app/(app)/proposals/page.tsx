@@ -22,7 +22,7 @@ import {
 } from "@/lib/product/presentation";
 import { getProposalThresholds } from "@/lib/product/rules";
 import { requireUser } from "@/lib/session";
-import { Check, MessageCircle, PencilLine, Plus, X } from "lucide-react";
+import { Check, MessageCircle, PencilLine, Plus, Vote, X } from "lucide-react";
 import Image from "next/image";
 
 export const dynamic = "force-dynamic";
@@ -46,13 +46,13 @@ export default async function ProposalsPage() {
   );
 
   return (
-    <div className="mx-auto grid max-w-6xl gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+    <div className="mx-auto grid max-w-6xl gap-5 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
       <section className="space-y-4 xl:order-2">
-        <div className="surface rounded-[24px] p-5">
+        <div className="surface rounded-[24px] p-4 sm:p-5">
           <p className="text-xs font-bold uppercase text-[var(--accent)]">
             Reglas del grupo
           </p>
-          <h1 className="mt-2 text-3xl font-black">Votos y propuestas</h1>
+          <h1 className="mt-2 text-2xl font-black sm:text-3xl">Votos y propuestas</h1>
           <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
             Hoy se necesitan {thresholds.approvalThreshold} voto(s) a favor al{" "}
             {settings.voteSettings.approvalPercentage}% o{" "}
@@ -62,8 +62,8 @@ export default async function ProposalsPage() {
           </p>
         </div>
 
-        <section className="surface rounded-[24px] p-5">
-          <h2 className="flex items-center gap-2 text-lg font-black">
+        <section className="surface rounded-[24px] p-4 sm:p-5">
+          <h2 className="flex items-center gap-2 text-base font-black sm:text-lg">
             <Plus className="size-5" aria-hidden />
             Proponer perfil
           </h2>
@@ -97,8 +97,8 @@ export default async function ProposalsPage() {
           </form>
         </section>
 
-        <section className="surface rounded-[24px] p-5">
-          <h2 className="flex items-center gap-2 text-lg font-black">
+        <section className="surface rounded-[24px] p-4 sm:p-5">
+          <h2 className="flex items-center gap-2 text-base font-black sm:text-lg">
             <PencilLine className="size-5" aria-hidden />
             Proponer textos
           </h2>
@@ -210,7 +210,7 @@ export default async function ProposalsPage() {
               key={proposal.id}
               className="surface overflow-hidden rounded-[28px]"
             >
-              <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_220px]">
+              <div className="grid gap-5 p-4 sm:p-5 lg:p-6 lg:grid-cols-[minmax(0,1fr)_220px]">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="pill">
@@ -290,7 +290,7 @@ export default async function ProposalsPage() {
               </div>
 
               {proposal.status === "PENDING" ? (
-                <div className="grid gap-3 border-y border-[var(--border)] bg-[var(--surface-muted)] p-4 md:grid-cols-2">
+                <div className="grid gap-3 border-y border-[var(--border)] bg-[var(--surface-muted)] p-3 sm:p-4 md:grid-cols-2">
                   <form
                     action={voteProposalAction}
                     className="soft-card rounded-2xl p-4"
@@ -341,7 +341,7 @@ export default async function ProposalsPage() {
                 </div>
               ) : null}
 
-              <div className="grid gap-4 p-5 sm:p-6 lg:grid-cols-2">
+              <div className="grid gap-4 p-4 sm:p-5 lg:p-6 lg:grid-cols-2">
                 <div className="soft-card rounded-2xl p-4">
                   <h3 className="flex items-center gap-2 font-black">
                     <MessageCircle className="size-4" aria-hidden />
@@ -390,6 +390,7 @@ export default async function ProposalsPage() {
         })}
         {proposals.length === 0 ? (
           <EmptyState
+            icon={Vote}
             title="Sin propuestas"
             body="Cuando alguien proponga algo, aparecera aqui."
           />

@@ -11,15 +11,15 @@ export default async function PeoplePage() {
   const people = await getPeopleSummaries();
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-5 sm:space-y-6">
       <div className="max-w-3xl">
-        <h1 className="text-4xl font-black">Personas</h1>
-        <p className="mt-2 text-[var(--muted)]">
+        <h1 className="text-3xl font-black sm:text-4xl">Personas</h1>
+        <p className="mt-2 text-sm text-[var(--muted)] sm:text-base">
           Perfiles del grupo, apodos del dia y fotos que cambian con el
           calendario.
         </p>
       </div>
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <section className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
         {people.map((person) => {
           const isOwnProfile = person.id === currentPerson.id;
           const theme = getProfileTheme(person.themeStyle, person.themeColor);
@@ -28,23 +28,23 @@ export default async function PeoplePage() {
             <Link
               href={`/people/${person.id}`}
               key={person.id}
-              className="group relative overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--surface)] shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl"
+              className="group relative overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--surface)] card-interactive"
             >
               {person.pendingProposalCount > 0 ? (
                 <span
-                  className="absolute right-3 top-3 z-10 grid min-h-6 min-w-6 place-items-center rounded-full bg-[var(--danger)] px-2 text-xs font-black text-[var(--danger-contrast)] shadow-[var(--shadow-soft)]"
+                  className="animate-pulse-badge absolute right-3 top-3 z-10 grid min-h-6 min-w-6 place-items-center rounded-full bg-[var(--danger)] px-2 text-xs font-black text-[var(--danger-contrast)] shadow-[var(--shadow-soft)]"
                   aria-label={`${person.pendingProposalCount} pendientes por aprobar`}
                 >
                   {person.pendingProposalCount}
                 </span>
               ) : null}
               <div
-                className="h-28 opacity-95"
+                className="h-28 opacity-95 transition-all duration-300 group-hover:scale-105"
                 style={{
                   background: theme.banner,
                 }}
               />
-              <div className="-mt-10 p-5">
+              <div className="-mt-10 p-4 sm:p-5">
                 <PersonAvatar
                   dailyPhoto={person.dailyPhoto}
                   name={person.displayName}

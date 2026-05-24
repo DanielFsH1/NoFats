@@ -15,8 +15,10 @@ export default async function LoginPage() {
         <ThemeToggle />
       </div>
       <section className="grid w-full max-w-5xl overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow)] lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="relative min-h-[420px] bg-[#073a33] p-8 text-white sm:p-10">
-          <div className="absolute inset-0 opacity-45 [background:radial-gradient(circle_at_20%_20%,#5dd1b5_0%,transparent_26%),linear-gradient(135deg,#073a33_0%,#2b6f98_48%,#d85f49_100%)]" />
+        <div className="relative min-h-[420px] overflow-hidden bg-[#073a33] p-8 text-white sm:p-10">
+          <div className="animate-breathe absolute inset-0 opacity-45 [background:radial-gradient(circle_at_20%_20%,#5dd1b5_0%,transparent_26%),linear-gradient(135deg,#073a33_0%,#2b6f98_48%,#d85f49_100%)]" />
+          <div className="absolute -right-20 -top-20 size-64 rounded-full bg-white/5 blur-3xl" />
+          <div className="absolute -bottom-16 -left-16 size-48 rounded-full bg-[#5dd1b5]/10 blur-3xl" />
           <div className="relative flex h-full flex-col justify-between">
             <div className="inline-flex w-fit items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-sm font-semibold">
               <UsersRound className="size-4" aria-hidden />
@@ -35,7 +37,7 @@ export default async function LoginPage() {
             </div>
           </div>
         </div>
-        <div className="p-8 sm:p-10">
+        <div className="flex flex-col justify-center p-8 sm:p-10">
           <h2 className="text-3xl font-black">Entrar</h2>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
             Inicia sesion para ver perfiles, propuestas y actividad.

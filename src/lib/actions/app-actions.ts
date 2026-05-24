@@ -169,6 +169,30 @@ async function assertNicknameIsUnique(
   }
 }
 
+async function findExistingNicknameId(personId: string, value: string) {
+  const existingNicknames = await getDb()
+    .select({ id: nicknames.id, value: nicknames.value })
+    .from(nicknames)
+    .where(and(eq(nicknames.personId, personId), isNull(nicknames.deletedAt)));
+  const normalizedValue = normalizeNicknameValue(value);
+
+  return (
+    existingNicknames.find(
+      (nickname) => normalizeNicknameValue(nickname.value) === normalizedValue,
+    )?.id ?? null
+  );
+}
+
+async function findNicknameIdByExactValue(personId: string, value: string) {
+  const [nickname] = await getDb()
+    .select({ id: nicknames.id })
+    .from(nicknames)
+    .where(and(eq(nicknames.personId, personId), eq(nicknames.value, value)))
+    .limit(1);
+
+  return nickname?.id ?? null;
+}
+
 async function createPendingProposalWithCreatorApproval(input: {
   type: typeof proposals.$inferInsert.type;
   targetPersonId?: string;
@@ -802,7 +826,8 @@ export async function voteProposalAction(formData: FormData) {
     .limit(1);
 
   if (!proposal) {
-    throw new Error("La propuesta ya no esta pendiente.");
+    revalidatePath("/proposals");
+    return;
   }
 
   const readiness = getProposalVoteReadiness({
@@ -811,26 +836,36 @@ export async function voteProposalAction(formData: FormData) {
   });
 
   if (!readiness.ok && readiness.reason === "settled") {
-    throw new Error("La propuesta ya no esta pendiente.");
+    revalidatePath("/proposals");
+    if (proposal.targetPersonId) {
+      revalidatePath(`/people/${proposal.targetPersonId}`);
+    }
+    return;
   }
 
   if (!readiness.ok && readiness.reason === "expired") {
-    await db
+    const rejectedProposals = await db
       .update(proposals)
       .set({
         status: "REJECTED",
         resolvedAt: new Date(),
         updatedAt: new Date(),
       })
-      .where(eq(proposals.id, proposalId));
-    if (proposal.type === "ADD_IMAGE") {
+      .where(and(eq(proposals.id, proposalId), eq(proposals.status, "PENDING")))
+      .returning();
+    if (rejectedProposals.length > 0 && proposal.type === "ADD_IMAGE") {
       await deleteImageProposalBlobs(proposal.payload);
     }
-    throw new Error("Esta propuesta expiro despues de 48 horas.");
+    revalidatePath("/proposals");
+    if (proposal.targetPersonId) {
+      revalidatePath(`/people/${proposal.targetPersonId}`);
+    }
+    return;
   }
 
   if (!readiness.ok && readiness.reason === "self_vote_blocked") {
-    throw new Error("Otra persona debe aprobar esta propuesta.");
+    revalidatePath("/proposals");
+    return;
   }
 
   await db
@@ -908,15 +943,16 @@ async function evaluateProposal(proposalId: string) {
     rejectionThreshold > 0 &&
     Number(rejectionCount.value) >= rejectionThreshold
   ) {
-    await db
+    const rejectedProposals = await db
       .update(proposals)
       .set({
         status: "REJECTED",
         resolvedAt: new Date(),
         updatedAt: new Date(),
       })
-      .where(eq(proposals.id, proposalId));
-    if (proposal.type === "ADD_IMAGE") {
+      .where(and(eq(proposals.id, proposalId), eq(proposals.status, "PENDING")))
+      .returning();
+    if (rejectedProposals.length > 0 && proposal.type === "ADD_IMAGE") {
       await deleteImageProposalBlobs(proposal.payload);
     }
   }
@@ -924,22 +960,56 @@ async function evaluateProposal(proposalId: string) {
 
 async function applyProposal(proposal: typeof proposals.$inferSelect) {
   const db = getDb();
+  const [claimedProposal] = await db
+    .update(proposals)
+    .set({ status: "APPROVED", updatedAt: new Date() })
+    .where(and(eq(proposals.id, proposal.id), eq(proposals.status, "PENDING")))
+    .returning();
+
+  if (!claimedProposal) {
+    return;
+  }
+
+  proposal = claimedProposal;
   const payload = proposal.payload as Record<string, unknown>;
 
   if (proposal.type === "ADD_NICKNAME" && proposal.targetPersonId) {
-    const nicknameId = id("nick");
     const value = String(payload.value ?? "");
-    await assertNicknameIsUnique(proposal.targetPersonId, value, {
-      excludeProposalId: proposal.id,
-    });
-    await db.insert(nicknames).values({
-      id: nicknameId,
-      personId: proposal.targetPersonId,
+    let nicknameId = await findExistingNicknameId(
+      proposal.targetPersonId,
       value,
-      status: "APPROVED",
-      proposedByUserId: proposal.createdByUserId,
-      approvedAt: new Date(),
-    });
+    );
+
+    if (!nicknameId) {
+      const createdNicknameId = id("nick");
+      const [createdNickname] = await db
+        .insert(nicknames)
+        .values({
+          id: createdNicknameId,
+          personId: proposal.targetPersonId,
+          value,
+          status: "APPROVED",
+          proposedByUserId: proposal.createdByUserId,
+          approvedAt: new Date(),
+        })
+        .onConflictDoNothing({
+          target: [nicknames.personId, nicknames.value],
+        })
+        .returning();
+      nicknameId =
+        createdNickname?.id ??
+        (await findExistingNicknameId(proposal.targetPersonId, value)) ??
+        (await findNicknameIdByExactValue(proposal.targetPersonId, value));
+
+      if (!nicknameId) {
+        return;
+      }
+    }
+
+    await db
+      .update(nicknames)
+      .set({ status: "APPROVED", deletedAt: null, approvedAt: new Date() })
+      .where(eq(nicknames.id, nicknameId));
 
     const [target] = await db
       .select()

@@ -72,6 +72,7 @@ export function activityTypeLabel(type: string) {
     "person.fictional_created": "Perfil creado",
     "proposal.created": "Propuesta nueva",
     "settings.site_copy_updated": "Textos actualizados",
+    "settings.site_copy_field_updated": "Texto editado",
     "settings.voting_updated": "Votacion ajustada",
     "person.updated": "Perfil editado",
     "nickname.added": "Apodo agregado",

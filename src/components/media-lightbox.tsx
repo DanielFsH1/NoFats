@@ -56,7 +56,7 @@ export function MediaLightbox({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`group relative block overflow-hidden text-left ${className}`}
+        className={`group relative block overflow-hidden text-left transition-transform duration-300 ${className}`}
         aria-label={`Ampliar imagen: ${alt}`}
       >
         <Image
@@ -78,13 +78,13 @@ export function MediaLightbox({
               role="dialog"
               aria-modal="true"
               aria-labelledby={titleId}
-              className="fixed inset-0 z-50 flex h-[100dvh] w-screen items-center justify-center overflow-y-auto bg-black/82 p-3 backdrop-blur-sm sm:p-6"
+              className="fixed inset-0 z-50 flex h-[100dvh] w-screen items-center justify-center overflow-y-auto bg-black/82 p-3 backdrop-blur-sm animate-fade-in sm:p-6"
             >
               <div
                 className="absolute inset-0"
                 onClick={() => setOpen(false)}
               />
-              <div className="relative z-10 flex max-h-[calc(100dvh-1.5rem)] w-full max-w-6xl flex-col overflow-hidden rounded-[24px] border border-white/15 bg-black shadow-2xl sm:max-h-[calc(100dvh-3rem)] sm:rounded-[28px]">
+              <div className="relative z-10 flex max-h-[calc(100dvh-1.5rem)] w-full max-w-6xl flex-col overflow-hidden rounded-[24px] border border-white/15 bg-black shadow-2xl animate-fade-in-scale sm:max-h-[calc(100dvh-3rem)] sm:rounded-[28px]">
                 <div className="flex items-center justify-between gap-3 border-b border-white/12 px-4 py-3 text-white">
                   <h2 id={titleId} className="truncate text-sm font-black">
                     {alt}
