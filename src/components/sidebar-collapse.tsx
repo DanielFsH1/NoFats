@@ -35,7 +35,7 @@ export function SidebarCollapseControl() {
     <button
       type="button"
       onClick={toggleCollapsed}
-      className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] transition hover:bg-[var(--surface-strong)] hover:text-[var(--foreground)]"
+      className="sidebar-collapse-control absolute right-0 top-5 z-10 inline-flex size-9 translate-x-1/2 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] shadow-[var(--shadow-soft)] transition hover:bg-[var(--surface-strong)] hover:text-[var(--foreground)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
       aria-label={collapsed ? "Expandir barra lateral" : "Contraer barra lateral"}
       title={collapsed ? "Expandir barra lateral" : "Contraer barra lateral"}
     >

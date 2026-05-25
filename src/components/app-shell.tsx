@@ -24,10 +24,12 @@ export function AppShell({
     <div className="min-h-screen">
       {/* ── Desktop Sidebar (lg+) ─────────────────────── */}
       <aside className="desktop-sidebar fixed inset-y-0 left-0 z-30 hidden w-[var(--sidebar-width)] flex-col overflow-visible border-r border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_96%,transparent)] backdrop-blur-xl lg:flex">
+        <SidebarCollapseControl />
+
         {/* Logo area */}
         <div className="border-b border-[var(--border)] px-5 py-5">
           <div className="flex items-center gap-2">
-            <Link href="/" className="flex min-w-0 items-center gap-3">
+            <Link href="/" className="flex min-w-0 flex-1 items-center gap-3">
               <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-[var(--accent)] text-sm font-black text-[var(--accent-contrast)] shadow-[var(--shadow-soft)]">
                 {getInitials(appName)}
               </span>
@@ -49,7 +51,6 @@ export function AppShell({
                 label="Editar nombre de la app"
               />
             </span>
-            <SidebarCollapseControl />
           </div>
         </div>
 
