@@ -1,9 +1,11 @@
 import { signOutAction } from "@/lib/actions/auth-actions";
 import { formatDateTime } from "@/lib/product/dates";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { EditableSiteText } from "@/components/editable-site-text";
 import { MainNav } from "@/components/main-nav";
 import { getInitials } from "@/components/person-avatar";
 import { ScrollToTop } from "@/components/scroll-to-top";
+import { SidebarCollapseControl } from "@/components/sidebar-collapse";
 import { ThemeToggle } from "@/components/theme-toggle";
 import type { LucideIcon } from "lucide-react";
 import { LogOut } from "lucide-react";
@@ -21,7 +23,7 @@ export function AppShell({
   return (
     <div className="min-h-screen">
       {/* ── Desktop Sidebar (lg+) ─────────────────────── */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[var(--sidebar-width)] flex-col overflow-visible border-r border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_96%,transparent)] backdrop-blur-xl lg:flex">
+      <aside className="desktop-sidebar fixed inset-y-0 left-0 z-30 hidden w-[var(--sidebar-width)] flex-col overflow-visible border-r border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_96%,transparent)] backdrop-blur-xl lg:flex">
         {/* Logo area */}
         <div className="border-b border-[var(--border)] px-5 py-5">
           <div className="flex items-center gap-2">
@@ -29,22 +31,25 @@ export function AppShell({
               <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-[var(--accent)] text-sm font-black text-[var(--accent-contrast)] shadow-[var(--shadow-soft)]">
                 {getInitials(appName)}
               </span>
-              <span className="min-w-0">
+              <span className="sidebar-label min-w-0">
                 <span className="block text-base font-black leading-tight">
                   <span className="bg-[linear-gradient(135deg,var(--foreground),var(--accent))] bg-clip-text text-transparent">
                     {appName}
                   </span>
                 </span>
-                <span className="block text-[11px] text-[var(--muted)]">
+                <span className="sidebar-date block text-[11px] text-[var(--muted)]">
                   {formatDateTime(new Date())}
                 </span>
               </span>
             </Link>
-            <EditableSiteText
-              field="appName"
-              value={appName}
-              label="Editar nombre de la app"
-            />
+            <span className="sidebar-edit">
+              <EditableSiteText
+                field="appName"
+                value={appName}
+                label="Editar nombre de la app"
+              />
+            </span>
+            <SidebarCollapseControl />
           </div>
         </div>
 
@@ -59,7 +64,7 @@ export function AppShell({
             <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[var(--surface-strong)] text-xs font-black text-[var(--foreground)]">
               {getInitials(user.name)}
             </span>
-            <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+            <span className="sidebar-user-name min-w-0 flex-1 truncate text-sm font-semibold">
               {user.name}
             </span>
             <ThemeToggle />
@@ -109,11 +114,12 @@ export function AppShell({
       </main>
 
       {/* ── Mobile Bottom Tab Bar (<lg) ──────────────── */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,transparent)] backdrop-blur-xl lg:hidden" aria-label="Navegacion principal">
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex-nowrap overflow-x-auto border-t border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,transparent)] backdrop-blur-xl lg:hidden" aria-label="Navegacion principal">
         <MainNav personId={user.personId} role={user.role} variant="bottom-bar" />
       </nav>
 
       <ScrollToTop />
+      <AutoRefresh />
     </div>
   );
 }

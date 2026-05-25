@@ -34,6 +34,7 @@ export const proposalTypeEnum = pgEnum("proposal_type", [
   "ADD_NICKNAME",
   "REMOVE_NICKNAME",
   "ADD_IMAGE",
+  "REMOVE_IMAGE",
   "REMOVE_POST",
   "CREATE_FICTIONAL_PERSON",
   "UPDATE_SITE_COPY",
@@ -194,6 +195,7 @@ export const nicknames = pgTable(
     status: nicknameStatusEnum("status").notNull().default("APPROVED"),
     isTemporary: boolean("is_temporary").notNull().default(false),
     proposedByUserId: text("proposed_by_user_id").references(() => users.id),
+    approvedViaProposalId: text("approved_via_proposal_id"),
     approvedAt: timestamp("approved_at", { withTimezone: true }),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })

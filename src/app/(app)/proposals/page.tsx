@@ -1,4 +1,5 @@
 import { EmptyState } from "@/components/app-shell";
+import { PaginationControls } from "@/components/pagination-controls";
 import { PersonAvatar } from "@/components/person-avatar";
 import { SubmitButton } from "@/components/submit-button";
 import {
@@ -20,6 +21,7 @@ import {
   proposalTypeLabel,
   voteDecisionLabel,
 } from "@/lib/product/presentation";
+import { paginateItems, parsePageParam } from "@/lib/product/pagination";
 import { getProposalThresholds } from "@/lib/product/rules";
 import { requireUser } from "@/lib/session";
 import { Check, MessageCircle, PencilLine, Plus, Vote, X } from "lucide-react";
@@ -27,19 +29,28 @@ import Image from "next/image";
 
 export const dynamic = "force-dynamic";
 
-export default async function ProposalsPage() {
+export default async function ProposalsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { user } = await requireUser();
-  const [proposals, eligibleUsers, settings] = await Promise.all([
+  const [proposals, query, eligibleUsers, settings] = await Promise.all([
     getProposalsWithVotes(),
+    searchParams,
     getVotingThreshold(),
     getAppSettings(),
   ]);
+  const proposalsPage = paginateItems(proposals, {
+    page: parsePageParam(query.page),
+    pageSize: 12,
+  });
   const thresholds = getProposalThresholds(
     eligibleUsers,
     settings.voteSettings,
   );
   const proposalCards = await Promise.all(
-    proposals.map(async (proposal) => ({
+    proposalsPage.items.map(async (proposal) => ({
       proposal,
       voteComments: await getVoteCommentList(proposal.id),
     })),
@@ -203,6 +214,15 @@ export default async function ProposalsPage() {
           const currentVote = proposal.votes.find(
             (vote) => vote.userId === user.id,
           )?.decision;
+          const removeImageMediaId =
+            typeof (proposal.payload as { mediaId?: unknown }).mediaId ===
+            "string"
+              ? String((proposal.payload as { mediaId?: unknown }).mediaId)
+              : null;
+          const proposalImageSrc =
+            proposal.type === "REMOVE_IMAGE" && removeImageMediaId
+              ? `/api/media/${removeImageMediaId}`
+              : `/api/proposal-media/${proposal.id}`;
 
           return (
             <article
@@ -226,17 +246,22 @@ export default async function ProposalsPage() {
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
                     {displaySummary}
                   </p>
-                  {proposal.type === "ADD_IMAGE" &&
+                  {(proposal.type === "ADD_IMAGE" ||
+                    (proposal.type === "REMOVE_IMAGE" && removeImageMediaId)) &&
                   proposal.status === "PENDING" ? (
                     <a
-                      href={`/api/proposal-media/${proposal.id}?size=full`}
+                      href={
+                        proposal.type === "REMOVE_IMAGE" && removeImageMediaId
+                          ? proposalImageSrc
+                          : `/api/proposal-media/${proposal.id}?size=full`
+                      }
                       target="_blank"
                       rel="noreferrer"
                       className="mt-4 block max-w-xl overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-muted)]"
                       aria-label={`Ver foto propuesta: ${displaySummary}`}
                     >
                       <Image
-                        src={`/api/proposal-media/${proposal.id}`}
+                        src={proposalImageSrc}
                         alt={displaySummary}
                         width={640}
                         height={360}
@@ -388,6 +413,11 @@ export default async function ProposalsPage() {
             </article>
           );
         })}
+        <PaginationControls
+          page={proposalsPage.page}
+          totalPages={proposalsPage.totalPages}
+          searchParams={query}
+        />
         {proposals.length === 0 ? (
           <EmptyState
             icon={Vote}

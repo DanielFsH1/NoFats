@@ -47,7 +47,7 @@ function SidebarNav({
             key={item.href}
             href={item.href}
             aria-current={active ? "page" : undefined}
-            className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200 ${
+            className={`sidebar-link group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200 ${
               active
                 ? "bg-[color-mix(in_srgb,var(--accent)_10%,var(--surface-strong))] text-[var(--foreground)]"
                 : "text-[var(--muted)] hover:bg-[var(--surface-strong)] hover:text-[var(--foreground)]"
@@ -62,7 +62,7 @@ function SidebarNav({
               }`}
               aria-hidden
             />
-            {item.label}
+            <span className="sidebar-label">{item.label}</span>
           </Link>
         );
       })}
@@ -74,7 +74,7 @@ function SidebarNav({
         aria-current={
           isActivePath(pathname, `/people/${personId}`) ? "page" : undefined
         }
-        className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200 ${
+        className={`sidebar-link group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200 ${
           isActivePath(pathname, `/people/${personId}`)
             ? "bg-[color-mix(in_srgb,var(--accent)_10%,var(--surface-strong))] text-[var(--foreground)]"
             : "text-[var(--muted)] hover:bg-[var(--surface-strong)] hover:text-[var(--foreground)]"
@@ -91,7 +91,7 @@ function SidebarNav({
           }`}
           aria-hidden
         />
-        Mi perfil
+        <span className="sidebar-label">Mi perfil</span>
       </Link>
 
       {role === "ADMIN" ? (
@@ -100,7 +100,7 @@ function SidebarNav({
           aria-current={
             isActivePath(pathname, "/admin") ? "page" : undefined
           }
-          className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200 ${
+          className={`sidebar-link group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200 ${
             isActivePath(pathname, "/admin")
               ? "bg-[color-mix(in_srgb,var(--accent)_10%,var(--surface-strong))] text-[var(--foreground)]"
               : "text-[var(--accent-ink)] hover:bg-[var(--surface-strong)] hover:text-[var(--foreground)]"
@@ -117,7 +117,7 @@ function SidebarNav({
             }`}
             aria-hidden
           />
-          Admin
+          <span className="sidebar-label">Admin</span>
         </Link>
       ) : null}
     </div>
@@ -144,7 +144,7 @@ function BottomBarNav({
   ];
 
   return (
-    <div className="flex items-center justify-around px-1 py-1.5">
+    <div className="flex min-w-max flex-nowrap items-center justify-around px-1 py-1.5">
       {allItems.map((item) => {
         const active = isActivePath(pathname, item.href);
 
@@ -153,7 +153,7 @@ function BottomBarNav({
             key={item.href}
             href={item.href}
             aria-current={active ? "page" : undefined}
-            className={`relative flex flex-col items-center gap-0.5 rounded-xl px-3 py-1.5 transition-all duration-200 active:scale-90 ${
+            className={`relative flex min-h-9 flex-col items-center gap-0.5 rounded-xl px-3 py-1.5 transition-all duration-200 active:scale-90 ${
               active
                 ? "text-[var(--accent)]"
                 : "text-[var(--muted)] hover:text-[var(--foreground)]"

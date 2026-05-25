@@ -24,6 +24,8 @@
   --shadow-soft: 0 10px 28px rgb(24 27 26 / 9%);
   --radius: 18px;
   --sidebar-width: 15rem;
+  --sidebar-expanded-width: 15rem;
+  --sidebar-collapsed-width: 5rem;
 }
 
 html[data-theme="dark"] {
@@ -63,6 +65,15 @@ html[data-theme="dark"] {
 
 html {
   scroll-behavior: smooth;
+}
+
+html[data-sidebar-collapsed="true"] {
+  --sidebar-width: var(--sidebar-collapsed-width);
+}
+
+html[data-sidebar-collapsed="false"],
+html:not([data-sidebar-collapsed]) {
+  --sidebar-width: var(--sidebar-expanded-width);
 }
 
 /* ── Keyframes ───────────────────────────────────── */
@@ -304,6 +315,37 @@ select:focus-visible {
 .pill-muted {
   background: var(--surface-strong);
   color: var(--muted);
+}
+
+.desktop-sidebar {
+  transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+main {
+  transition: margin-left 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sidebar-label,
+.sidebar-date,
+.sidebar-edit,
+.sidebar-user-name {
+  min-width: 0;
+  transition: opacity 0.18s ease, max-width 0.22s ease;
+}
+
+html[data-sidebar-collapsed="true"] .sidebar-link {
+  justify-content: center;
+}
+
+html[data-sidebar-collapsed="true"] .sidebar-label,
+html[data-sidebar-collapsed="true"] .sidebar-date,
+html[data-sidebar-collapsed="true"] .sidebar-edit,
+html[data-sidebar-collapsed="true"] .sidebar-user-name {
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  white-space: nowrap;
 }
 
 /* ── Interactive utilities ───────────────────────── */

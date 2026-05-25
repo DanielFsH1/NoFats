@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  proposalDisplaySummary,
   proposalDisplayTitle,
   proposalStatusLabel,
   proposalTypeLabel,
@@ -24,5 +25,23 @@ describe("proposal presentation", () => {
   it("maps internal proposal enums to human labels", () => {
     expect(proposalTypeLabel("ADD_NICKNAME")).toBe("Apodo");
     expect(proposalStatusLabel("PENDING")).toBe("En votacion");
+  });
+
+  it("renders image removal proposals as first-class photo proposals", () => {
+    const proposal = {
+      type: "REMOVE_IMAGE",
+      title: "Eliminar foto",
+      summary: "Foto antigua",
+      payload: { altText: "Foto borrosa" },
+      createdByName: "Usuario QA",
+      creatorDisplayName: "Ana",
+      targetDisplayName: "Luis",
+    } as const;
+
+    expect(proposalTypeLabel(proposal.type)).toBe("Quitar foto");
+    expect(proposalDisplayTitle(proposal)).toBe(
+      "Ana quiere quitar una foto de Luis",
+    );
+    expect(proposalDisplaySummary(proposal)).toBe("Foto borrosa");
   });
 });

@@ -652,6 +652,61 @@ export async function removeNicknameAction(formData: FormData) {
   revalidatePath("/proposals");
 }
 
+export async function removeImageAction(formData: FormData) {
+  const { user } = await requireUser();
+  const mediaId = getString(formData, "mediaId");
+  const db = getDb();
+  const [asset] = await db
+    .select()
+    .from(mediaAssets)
+    .where(eq(mediaAssets.id, mediaId))
+    .limit(1);
+
+  if (!asset || asset.deletedAt) {
+    throw new Error("Foto no encontrada.");
+  }
+
+  const [target] = await db
+    .select()
+    .from(people)
+    .where(eq(people.id, asset.personId))
+    .limit(1);
+
+  if (!target) {
+    throw new Error("Perfil no encontrado.");
+  }
+
+  const canDirectlyEdit = canManagePerson({
+    actor: { id: user.id, role: user.role },
+    target: { kind: target.kind, userId: target.userId },
+  });
+
+  if (canDirectlyEdit) {
+    await db
+      .update(mediaAssets)
+      .set({ status: "DELETED", deletedAt: new Date() })
+      .where(eq(mediaAssets.id, mediaId));
+  } else {
+    await createPendingProposalWithCreatorApproval({
+      type: "REMOVE_IMAGE",
+      targetPersonId: target.id,
+      createdByUserId: user.id,
+      title: "Quitar una foto",
+      summary: asset.altText || "Solicitud de eliminacion de foto.",
+      payload: {
+        mediaId: asset.id,
+        altText: asset.altText,
+        width: asset.width,
+        height: asset.height,
+      },
+    });
+  }
+
+  revalidatePath(`/people/${target.id}`);
+  revalidatePath("/gallery");
+  revalidatePath("/proposals");
+}
+
 export async function nominateDailyNicknameAction(formData: FormData) {
   const { user } = await requireUser();
   const personId = getString(formData, "personId");
@@ -990,6 +1045,7 @@ async function applyProposal(proposal: typeof proposals.$inferSelect) {
           value,
           status: "APPROVED",
           proposedByUserId: proposal.createdByUserId,
+          approvedViaProposalId: proposal.id,
           approvedAt: new Date(),
         })
         .onConflictDoNothing({
@@ -1008,7 +1064,12 @@ async function applyProposal(proposal: typeof proposals.$inferSelect) {
 
     await db
       .update(nicknames)
-      .set({ status: "APPROVED", deletedAt: null, approvedAt: new Date() })
+      .set({
+        status: "APPROVED",
+        deletedAt: null,
+        approvedViaProposalId: proposal.id,
+        approvedAt: new Date(),
+      })
       .where(eq(nicknames.id, nicknameId));
 
     const [target] = await db
@@ -1027,6 +1088,13 @@ async function applyProposal(proposal: typeof proposals.$inferSelect) {
       .update(nicknames)
       .set({ status: "DELETED", deletedAt: new Date() })
       .where(eq(nicknames.id, String(payload.nicknameId)));
+  }
+
+  if (proposal.type === "REMOVE_IMAGE") {
+    await db
+      .update(mediaAssets)
+      .set({ status: "DELETED", deletedAt: new Date() })
+      .where(eq(mediaAssets.id, String(payload.mediaId)));
   }
 
   if (proposal.type === "CREATE_FICTIONAL_PERSON") {

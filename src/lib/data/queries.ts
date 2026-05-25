@@ -346,6 +346,25 @@ export async function getPersonProfile(
   ]);
   const tomorrowNominationCountByNickname = new Map<string, number>();
   const currentUserNominationIds = new Set<string>();
+  const nicknameProposalIds = personNicknames
+    .map((nickname) => nickname.approvedViaProposalId)
+    .filter((proposalId): proposalId is string => Boolean(proposalId));
+  const nicknameVoteRows =
+    nicknameProposalIds.length > 0
+      ? await db
+          .select({
+            id: proposalVotes.id,
+            proposalId: proposalVotes.proposalId,
+            decision: proposalVotes.decision,
+            comment: proposalVotes.comment,
+            createdAt: proposalVotes.createdAt,
+            userId: users.id,
+            authorName: users.name,
+          })
+          .from(proposalVotes)
+          .innerJoin(users, eq(proposalVotes.userId, users.id))
+          .where(inArray(proposalVotes.proposalId, nicknameProposalIds))
+      : [];
 
   for (const nomination of tomorrowNominations) {
     tomorrowNominationCountByNickname.set(
@@ -416,6 +435,23 @@ export async function getPersonProfile(
       nominatedByCurrentUserForTomorrow: currentUserNominationIds.has(
         nickname.id,
       ),
+      voteComments: nickname.approvedViaProposalId
+        ? nicknameVoteRows
+            .filter(
+              (vote) =>
+                vote.proposalId === nickname.approvedViaProposalId &&
+                vote.comment.trim().length > 0,
+            )
+            .map((vote) => ({
+              id: vote.id,
+              decision: vote.decision,
+              comment: vote.comment,
+              createdAt: vote.createdAt,
+              authorName:
+                personByUserId.get(vote.userId)?.displayName ??
+                vote.authorName,
+            }))
+        : [],
     })),
     posts: personPosts.map((post) => ({
       ...post,

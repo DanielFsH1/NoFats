@@ -1,14 +1,24 @@
 import { EmptyState } from "@/components/app-shell";
 import { MediaLightbox } from "@/components/media-lightbox";
+import { PaginationControls } from "@/components/pagination-controls";
 import { getGallery } from "@/lib/data/queries";
+import { paginateItems, parsePageParam } from "@/lib/product/pagination";
 import { requireUser } from "@/lib/session";
 import { Camera } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-export default async function GalleryPage() {
+export default async function GalleryPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   await requireUser();
-  const assets = await getGallery();
+  const [assets, query] = await Promise.all([getGallery(), searchParams]);
+  const galleryPage = paginateItems(assets, {
+    page: parsePageParam(query.page),
+    pageSize: 28,
+  });
 
   return (
     <div className="mx-auto max-w-6xl space-y-5 sm:space-y-6">
@@ -27,7 +37,7 @@ export default async function GalleryPage() {
         </p>
       </div>
       <section className="grid auto-rows-[7rem] grid-cols-2 gap-1.5 sm:auto-rows-[8rem] sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7">
-        {assets.map((asset) => {
+        {galleryPage.items.map((asset) => {
           const isTall =
             asset.width && asset.height
               ? asset.height / asset.width > 1.2
@@ -64,6 +74,11 @@ export default async function GalleryPage() {
           );
         })}
       </section>
+      <PaginationControls
+        page={galleryPage.page}
+        totalPages={galleryPage.totalPages}
+        searchParams={query}
+      />
       {assets.length === 0 ? (
         <EmptyState
           icon={Camera}

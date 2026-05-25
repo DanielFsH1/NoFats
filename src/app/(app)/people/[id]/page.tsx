@@ -12,14 +12,17 @@ import {
   createPostAction,
   deletePostAction,
   nominateDailyNicknameAction,
+  removeImageAction,
   removeNicknameAction,
   updateProfileAction,
   voteProposalAction,
 } from "@/lib/actions/app-actions";
+import { PaginationControls } from "@/components/pagination-controls";
 import { uploadImageAction } from "@/lib/actions/media-actions";
 import { getPersonProfile, getVotingThreshold } from "@/lib/data/queries";
 import { getAppSettings } from "@/lib/data/settings";
 import { formatDateTime } from "@/lib/product/dates";
+import { paginateItems, parsePageParam } from "@/lib/product/pagination";
 import {
   getProfileTheme,
   profileThemeOptions,
@@ -32,7 +35,6 @@ import {
   ChevronDown,
   FileText,
   MessageCircle,
-  Palette,
   Pencil,
   Quote,
   Sparkles,
@@ -49,12 +51,15 @@ export const dynamic = "force-dynamic";
 
 export default async function PersonPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const [{ user }, { id }, eligibleUsers, settings] = await Promise.all([
+  const [{ user }, { id }, query, eligibleUsers, settings] = await Promise.all([
     requireUser(),
     params,
+    searchParams,
     getVotingThreshold(),
     getAppSettings(),
   ]);
@@ -81,8 +86,17 @@ export default async function PersonPage({
       proposal.type === "ADD_NICKNAME" || proposal.type === "REMOVE_NICKNAME",
   );
   const imageProposals = profile.pendingProposals.filter(
-    (proposal) => proposal.type === "ADD_IMAGE",
+    (proposal) => proposal.type === "ADD_IMAGE" || proposal.type === "REMOVE_IMAGE",
   );
+  const approvedMedia = profile.media.filter((asset) => asset.status === "APPROVED");
+  const mediaPage = paginateItems(approvedMedia, {
+    page: parsePageParam(query.fotos),
+    pageSize: 12,
+  });
+  const postsPage = paginateItems(profile.posts, {
+    page: parsePageParam(query.publicaciones),
+    pageSize: 8,
+  });
   const thresholds = getProposalThresholds(
     eligibleUsers,
     settings.voteSettings,
@@ -252,6 +266,7 @@ export default async function PersonPage({
                     nickname.tomorrowNominationCount,
                   nominatedByCurrentUserForTomorrow:
                     nickname.nominatedByCurrentUserForTomorrow,
+                  voteComments: nickname.voteComments,
                 }))}
                 personId={profile.person.id}
                 nominateAction={nominateDailyNicknameAction}
@@ -303,6 +318,7 @@ export default async function PersonPage({
               <div className="mt-3 grid gap-3 lg:grid-cols-2">
                 {imageProposals.map((proposal) => {
                   const payload = proposal.payload as {
+                    mediaId?: unknown;
                     altText?: unknown;
                     width?: unknown;
                     height?: unknown;
@@ -338,7 +354,12 @@ export default async function PersonPage({
                         <span className="flex min-w-0 items-center gap-3">
                           <span className="relative size-14 shrink-0 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
                             <Image
-                              src={`/api/proposal-media/${proposal.id}`}
+                              src={
+                                proposal.type === "REMOVE_IMAGE" &&
+                                typeof payload.mediaId === "string"
+                                  ? `/api/media/${payload.mediaId}`
+                                  : `/api/proposal-media/${proposal.id}`
+                              }
                               alt={label}
                               fill
                               sizes="56px"
@@ -351,7 +372,9 @@ export default async function PersonPage({
                               {label}
                             </span>
                             <span className="mt-1 block text-xs text-[var(--muted)]">
-                              {proposal.creatorDisplayName} propuso esta foto
+                              {proposal.type === "REMOVE_IMAGE"
+                                ? `${proposal.creatorDisplayName} propuso quitar esta foto`
+                                : `${proposal.creatorDisplayName} propuso esta foto`}
                             </span>
                           </span>
                         </span>
@@ -373,8 +396,18 @@ export default async function PersonPage({
 
                       <div className="mt-4 space-y-4 border-t border-[var(--border)] pt-4">
                         <MediaLightbox
-                          src={`/api/proposal-media/${proposal.id}`}
-                          fullSrc={`/api/proposal-media/${proposal.id}?size=full`}
+                          src={
+                            proposal.type === "REMOVE_IMAGE" &&
+                            typeof payload.mediaId === "string"
+                              ? `/api/media/${payload.mediaId}`
+                              : `/api/proposal-media/${proposal.id}`
+                          }
+                          fullSrc={
+                            proposal.type === "REMOVE_IMAGE" &&
+                            typeof payload.mediaId === "string"
+                              ? `/api/media/${payload.mediaId}`
+                              : `/api/proposal-media/${proposal.id}?size=full`
+                          }
                           alt={label}
                           width={
                             typeof payload.width === "number"
@@ -534,9 +567,7 @@ export default async function PersonPage({
           ) : null}
 
           <div className="mt-6 grid auto-rows-[7rem] grid-cols-2 gap-1.5 sm:auto-rows-[7rem] sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-            {profile.media
-              .filter((asset) => asset.status === "APPROVED")
-              .map((asset) => {
+            {mediaPage.items.map((asset) => {
                 const isTall =
                   asset.width && asset.height
                     ? asset.height / asset.width > 1.2
@@ -552,20 +583,43 @@ export default async function PersonPage({
                     : "";
 
                 return (
-                  <MediaLightbox
+                  <figure
                     key={asset.id}
-                    src={`/api/media/${asset.id}`}
-                    alt={asset.altText || "Foto del perfil"}
-                    width={asset.width}
-                    height={asset.height}
-                    className={`${tileClass} h-full rounded-xl border border-[var(--border)] bg-[var(--surface-muted)]`}
-                    imageClassName="h-full w-full object-cover"
-                  />
+                    className={`${tileClass} group/photo relative min-w-0 overflow-hidden rounded-xl`}
+                  >
+                    <MediaLightbox
+                      src={`/api/media/${asset.id}`}
+                      alt={asset.altText || "Foto del perfil"}
+                      width={asset.width}
+                      height={asset.height}
+                      className="h-full w-full rounded-xl border border-[var(--border)] bg-[var(--surface-muted)]"
+                      imageClassName="h-full w-full object-cover"
+                    />
+                    <form
+                      action={removeImageAction}
+                      className="absolute right-2 top-2 opacity-0 transition group-hover/photo:opacity-100 group-focus-within/photo:opacity-100"
+                    >
+                      <input type="hidden" name="mediaId" value={asset.id} />
+                      <button
+                        type="submit"
+                        className="grid size-9 place-items-center rounded-full bg-black/60 text-white shadow-sm transition hover:bg-[var(--danger)]"
+                        aria-label="Proponer quitar foto"
+                        title="Quitar foto"
+                      >
+                        <Trash2 className="size-4" aria-hidden />
+                      </button>
+                    </form>
+                  </figure>
                 );
               })}
           </div>
-          {profile.media.filter((asset) => asset.status === "APPROVED")
-            .length === 0 ? (
+          <PaginationControls
+            page={mediaPage.page}
+            totalPages={mediaPage.totalPages}
+            searchParams={query}
+            pageParam="fotos"
+          />
+          {approvedMedia.length === 0 ? (
             <EmptyState
               icon={Camera}
               title="Sin fotos"
@@ -597,7 +651,7 @@ export default async function PersonPage({
                 <SubmitButton>Publicar</SubmitButton>
               </form>
               <div className="mt-6 space-y-4">
-                {profile.posts.map((post) => (
+                {postsPage.items.map((post) => (
                   <article
                     key={post.id}
                     className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5 transition-all duration-200 hover:shadow-md"
@@ -660,6 +714,12 @@ export default async function PersonPage({
                     ) : null}
                   </article>
                 ))}
+                <PaginationControls
+                  page={postsPage.page}
+                  totalPages={postsPage.totalPages}
+                  searchParams={query}
+                  pageParam="publicaciones"
+                />
                 {profile.posts.length === 0 ? (
                   <EmptyState
                     icon={MessageCircle}

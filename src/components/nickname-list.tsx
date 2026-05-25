@@ -4,7 +4,9 @@ import { normalizeNicknameValue } from "@/lib/product/rules";
 import {
   CalendarCheck,
   CalendarPlus,
+  ChevronDown,
   Loader2,
+  MessageCircle,
   Search,
   Trash2,
 } from "lucide-react";
@@ -17,6 +19,12 @@ type Nickname = {
   status: string;
   tomorrowNominationCount?: number;
   nominatedByCurrentUserForTomorrow?: boolean;
+  voteComments?: {
+    id: string;
+    authorName: string;
+    decision: "APPROVE" | "REJECT";
+    comment: string;
+  }[];
 };
 
 type ServerAction = (formData: FormData) => void | Promise<void>;
@@ -33,9 +41,12 @@ export function NicknameList({
   removeAction: ServerAction;
 }) {
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [openCommentIds, setOpenCommentIds] = useState<string[]>([]);
   const [optimisticNominations, setOptimisticNominations] = useState<string[]>(
     [],
   );
+  const pageSize = 8;
   const indexedNicknames = useMemo(
     () =>
       nicknames.map((nickname, index) => ({
@@ -55,6 +66,12 @@ export function NicknameList({
       normalizeNicknameValue(nickname.value).includes(normalizedQuery),
     );
   }, [indexedNicknames, query]);
+  const totalPages = Math.max(1, Math.ceil(filteredNicknames.length / pageSize));
+  const normalizedPage = Math.min(page, totalPages);
+  const paginatedNicknames = filteredNicknames.slice(
+    (normalizedPage - 1) * pageSize,
+    normalizedPage * pageSize,
+  );
 
   return (
     <div className="space-y-3">
@@ -70,7 +87,7 @@ export function NicknameList({
       </label>
 
       <div className="space-y-2">
-        {filteredNicknames.map((nickname) => {
+        {paginatedNicknames.map((nickname) => {
           const optimisticallyNominated = optimisticNominations.includes(
             nickname.id,
           );
@@ -84,80 +101,160 @@ export function NicknameList({
               ? 1
               : 0);
 
+          const voteComments = nickname.voteComments ?? [];
+          const commentsOpen = openCommentIds.includes(nickname.id);
+
           return (
-            <div
+            <article
               key={nickname.id}
-              className="soft-card flex items-center justify-between gap-3 rounded-2xl p-3"
+              className="soft-card rounded-2xl p-3"
             >
-              <span className="flex min-w-0 items-center gap-3">
-                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[var(--surface-strong)] text-xs font-black text-[var(--muted)]">
-                  {nickname.number}
-                </span>
-                <span className="min-w-0">
-                  <strong className="block truncate">{nickname.value}</strong>
-                  <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
-                    {nickname.status === "TEMPORARY" ? (
-                      <span>inicial</span>
-                    ) : null}
-                    {nickname.status === "APPROVED" ? (
-                      <span>
-                        {nominationCount}{" "}
-                        {nominationCount === 1
-                          ? "postulacion para manana"
-                          : "postulaciones para manana"}
-                      </span>
-                    ) : null}
-                    {nominatedByCurrentUser ? (
-                      <span
-                        role="status"
-                        className="rounded-full bg-[color-mix(in_srgb,var(--success)_14%,transparent)] px-2 py-0.5 font-black text-[var(--success)]"
-                      >
-                        Postulado
-                      </span>
-                    ) : null}
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[var(--surface-strong)] text-xs font-black text-[var(--muted)]">
+                    {nickname.number}
+                  </span>
+                  <span className="min-w-0">
+                    <strong className="block truncate">{nickname.value}</strong>
+                    <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
+                      {nickname.status === "TEMPORARY" ? (
+                        <span>inicial</span>
+                      ) : null}
+                      {nickname.status === "APPROVED" ? (
+                        <span>
+                          {nominationCount}{" "}
+                          {nominationCount === 1
+                            ? "postulacion para manana"
+                            : "postulaciones para manana"}
+                        </span>
+                      ) : null}
+                      {voteComments.length > 0 ? (
+                        <span>{voteComments.length} comentarios de votos</span>
+                      ) : null}
+                      {nominatedByCurrentUser ? (
+                        <span
+                          role="status"
+                          className="rounded-full bg-[color-mix(in_srgb,var(--success)_14%,transparent)] px-2 py-0.5 font-black text-[var(--success)]"
+                        >
+                          Postulado
+                        </span>
+                      ) : null}
+                    </span>
                   </span>
                 </span>
-              </span>
-              <div className="flex shrink-0 gap-1">
-                {nickname.status === "APPROVED" ? (
-                  <form
-                    action={nominateAction}
-                    onSubmit={() =>
-                      setOptimisticNominations((current) =>
+                <div className="flex shrink-0 gap-1">
+                  {nickname.status === "APPROVED" ? (
+                    <form
+                      action={nominateAction}
+                      onSubmit={() =>
+                        setOptimisticNominations((current) =>
+                          current.includes(nickname.id)
+                            ? current
+                            : [...current, nickname.id],
+                        )
+                      }
+                    >
+                      <input type="hidden" name="personId" value={personId} />
+                      <input
+                        type="hidden"
+                        name="nicknameId"
+                        value={nickname.id}
+                      />
+                      <NominateButton
+                        nickname={nickname.value}
+                        nominated={nominatedByCurrentUser}
+                      />
+                    </form>
+                  ) : null}
+                  <form action={removeAction}>
+                    <input type="hidden" name="nicknameId" value={nickname.id} />
+                    <button
+                      type="submit"
+                      aria-label={`Quitar el apodo "${nickname.value}"`}
+                      title="Quitar apodo"
+                      className="inline-flex size-9 items-center justify-center rounded-full text-[var(--danger)] transition hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--danger)]"
+                    >
+                      <Trash2 className="size-4" aria-hidden />
+                    </button>
+                  </form>
+                </div>
+              </div>
+              {voteComments.length > 0 ? (
+                <div className="mt-2 rounded-xl bg-[var(--surface-muted)] p-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenCommentIds((current) =>
                         current.includes(nickname.id)
-                          ? current
+                          ? current.filter((id) => id !== nickname.id)
                           : [...current, nickname.id],
                       )
                     }
+                    className="flex w-full cursor-pointer items-center justify-between gap-3 text-left text-xs font-black text-[var(--muted)]"
+                    aria-label={`Ver comentarios de votos para "${nickname.value}"`}
                   >
-                    <input type="hidden" name="personId" value={personId} />
-                    <input
-                      type="hidden"
-                      name="nicknameId"
-                      value={nickname.id}
+                    <span className="inline-flex items-center gap-2">
+                      <MessageCircle className="size-4" aria-hidden />
+                      Comentarios de aprobacion
+                    </span>
+                    <ChevronDown
+                      className={`size-4 transition ${commentsOpen ? "rotate-180" : ""}`}
+                      aria-hidden
                     />
-                    <NominateButton
-                      nickname={nickname.value}
-                      nominated={nominatedByCurrentUser}
-                    />
-                  </form>
-                ) : null}
-                <form action={removeAction}>
-                  <input type="hidden" name="nicknameId" value={nickname.id} />
-                  <button
-                    type="submit"
-                    aria-label={`Quitar el apodo "${nickname.value}"`}
-                    title="Quitar apodo"
-                    className="inline-flex size-9 items-center justify-center rounded-full text-[var(--danger)] transition hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--danger)]"
-                  >
-                    <Trash2 className="size-4" aria-hidden />
                   </button>
-                </form>
-              </div>
-            </div>
+                  {commentsOpen ? (
+                    <div className="mt-3 space-y-2">
+                      {voteComments.map((vote) => (
+                        <p key={vote.id} className="text-sm">
+                          <strong>{vote.authorName}</strong>{" "}
+                          <span
+                            className={
+                              vote.decision === "APPROVE"
+                                ? "text-[var(--success)]"
+                                : "text-[var(--danger)]"
+                            }
+                          >
+                            {vote.decision === "APPROVE" ? "aprobo" : "rechazo"}
+                          </span>
+                          :{" "}
+                          <span className="text-[var(--muted)]">
+                            {vote.comment}
+                          </span>
+                        </p>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </article>
           );
         })}
       </div>
+      {filteredNicknames.length > pageSize ? (
+        <div className="flex items-center justify-center gap-2 pt-1">
+          <button
+            type="button"
+            disabled={normalizedPage <= 1}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            className="h-9 rounded-xl border border-[var(--border)] px-3 text-xs font-black disabled:opacity-45"
+          >
+            Anterior
+          </button>
+          <span className="text-xs font-black text-[var(--muted)]">
+            {normalizedPage} / {totalPages}
+          </span>
+          <button
+            type="button"
+            disabled={normalizedPage >= totalPages}
+            onClick={() =>
+              setPage((current) => Math.min(totalPages, current + 1))
+            }
+            className="h-9 rounded-xl border border-[var(--border)] px-3 text-xs font-black disabled:opacity-45"
+          >
+            Siguiente
+          </button>
+        </div>
+      ) : null}
 
       {filteredNicknames.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-[var(--border)] p-4 text-sm text-[var(--muted)]">

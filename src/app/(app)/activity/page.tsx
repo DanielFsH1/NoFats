@@ -1,11 +1,12 @@
 import { EmptyState } from "@/components/app-shell";
+import { PaginationControls } from "@/components/pagination-controls";
 import { getActivity } from "@/lib/data/queries";
 import { formatDateTime } from "@/lib/product/dates";
+import { paginateItems, parsePageParam } from "@/lib/product/pagination";
 import { activityTypeLabel } from "@/lib/product/presentation";
 import { requireUser } from "@/lib/session";
 import {
   Activity,
-  Camera,
   CheckCircle2,
   Hash,
   MessageCircle,
@@ -49,12 +50,20 @@ function getDateKey(date: Date | string): string {
   });
 }
 
-export default async function ActivityPage() {
+export default async function ActivityPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   await requireUser();
-  const events = await getActivity(80);
+  const [events, query] = await Promise.all([getActivity(200), searchParams]);
+  const eventsPage = paginateItems(events, {
+    page: parsePageParam(query.page),
+    pageSize: 30,
+  });
 
   const grouped: { dateKey: string; items: typeof events }[] = [];
-  for (const event of events) {
+  for (const event of eventsPage.items) {
     const key = getDateKey(event.createdAt);
     const last = grouped[grouped.length - 1];
     if (last && last.dateKey === key) {
@@ -117,6 +126,11 @@ export default async function ActivityPage() {
           />
         ) : null}
       </section>
+      <PaginationControls
+        page={eventsPage.page}
+        totalPages={eventsPage.totalPages}
+        searchParams={query}
+      />
     </div>
   );
 }

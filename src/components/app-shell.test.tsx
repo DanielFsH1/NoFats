@@ -6,6 +6,7 @@ import { AppShell } from "./app-shell";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/people",
+  useRouter: () => ({ refresh: vi.fn() }),
 }));
 
 describe("AppShell", () => {
@@ -22,14 +23,12 @@ describe("AppShell", () => {
     const nav = screen.getByRole("navigation", {
       name: "Navegacion principal",
     });
-    const home = screen.getByRole("link", { name: /inicio/i });
+    const home = screen.getAllByRole("link", { name: /inicio/i }).at(-1);
 
     expect(nav.className).toContain("overflow-x-auto");
     expect(nav.className).toContain("flex-nowrap");
-    expect(home.className).toContain("min-h-9");
-    expect(screen.getByText("Usuario").closest("div")?.className).toContain(
-      "hidden",
-    );
+    expect(home?.className).toContain("min-h-9");
+    expect(screen.getByRole("button", { name: "Contraer barra lateral" })).not.toBeNull();
   });
 
   it("marks the current navigation item for keyboard and screen-reader users", () => {
@@ -43,7 +42,7 @@ describe("AppShell", () => {
     );
 
     expect(
-      screen.getByRole("link", { name: /personas/i }).getAttribute(
+      screen.getAllByRole("link", { name: /personas/i })[0].getAttribute(
         "aria-current",
       ),
     ).toBe("page");

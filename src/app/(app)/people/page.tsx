@@ -1,14 +1,27 @@
+import { PaginationControls } from "@/components/pagination-controls";
 import { PersonAvatar } from "@/components/person-avatar";
 import { getPeopleSummaries } from "@/lib/data/queries";
+import { paginateItems, parsePageParam } from "@/lib/product/pagination";
 import { getProfileTheme } from "@/lib/product/profile-themes";
 import { requireUser } from "@/lib/session";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-export default async function PeoplePage() {
+export default async function PeoplePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { person: currentPerson } = await requireUser();
-  const people = await getPeopleSummaries();
+  const [people, query] = await Promise.all([
+    getPeopleSummaries(),
+    searchParams,
+  ]);
+  const peoplePage = paginateItems(people, {
+    page: parsePageParam(query.page),
+    pageSize: 16,
+  });
 
   return (
     <div className="mx-auto max-w-6xl space-y-5 sm:space-y-6">
@@ -20,7 +33,7 @@ export default async function PeoplePage() {
         </p>
       </div>
       <section className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
-        {people.map((person) => {
+        {peoplePage.items.map((person) => {
           const isOwnProfile = person.id === currentPerson.id;
           const theme = getProfileTheme(person.themeStyle, person.themeColor);
 
@@ -78,6 +91,11 @@ export default async function PeoplePage() {
           );
         })}
       </section>
+      <PaginationControls
+        page={peoplePage.page}
+        totalPages={peoplePage.totalPages}
+        searchParams={query}
+      />
     </div>
   );
 }

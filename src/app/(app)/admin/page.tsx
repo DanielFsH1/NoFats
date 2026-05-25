@@ -13,7 +13,6 @@ import { formatDateTime } from "@/lib/product/dates";
 import { roleLabel, slotStatusLabel } from "@/lib/product/presentation";
 import { requireAdmin } from "@/lib/session";
 import {
-  Camera,
   Copy,
   Hash,
   Image as ImageIcon,
