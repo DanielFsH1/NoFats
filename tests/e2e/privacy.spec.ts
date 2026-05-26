@@ -6,6 +6,38 @@ test("private routes redirect unauthenticated visitors to login", async ({ page 
   await expect(page.getByRole("heading", { name: "Entrar" })).toBeVisible();
 });
 
+test("admin route redirects unauthenticated visitors to login", async ({ page }) => {
+  await page.goto("/admin");
+  await expect(page).toHaveURL(/\/login/);
+  await expect(page.getByRole("heading", { name: "Entrar" })).toBeVisible();
+});
+
+test("private media APIs reject unauthenticated visitors", async ({ request }) => {
+  const approvedMedia = await request.get("/api/media/missing-media");
+  const proposedMedia = await request.get("/api/proposal-media/missing-proposal");
+
+  expect(approvedMedia.status()).toBe(401);
+  expect(proposedMedia.status()).toBe(401);
+});
+
+test("security headers are present on pages and private APIs", async ({
+  request,
+}) => {
+  const login = await request.get("/login");
+  const media = await request.get("/api/media/missing-media");
+
+  for (const response of [login, media]) {
+    expect(response.headers()["x-content-type-options"]).toBe("nosniff");
+    expect(response.headers()["x-frame-options"]).toBe("DENY");
+    expect(response.headers()["referrer-policy"]).toBe(
+      "strict-origin-when-cross-origin",
+    );
+    expect(
+      response.headers()["content-security-policy-report-only"],
+    ).toContain("frame-ancestors 'none'");
+  }
+});
+
 test("login page is public", async ({ page }) => {
   await page.goto("/login");
   await expect(page.getByRole("heading", { name: "Entrar" })).toBeVisible();

@@ -25,15 +25,9 @@ export type ManagePersonInput = {
   };
 };
 
-export type AddNicknameDirectlyInput = {
-  actorId: string;
-  targetUserId?: string | null;
-};
+export type AddNicknameDirectlyInput = ManagePersonInput;
 
-export type AddOwnProfileContentDirectlyInput = {
-  actorId: string;
-  targetUserId?: string | null;
-};
+export type AddOwnProfileContentDirectlyInput = ManagePersonInput;
 
 export type ProposalVotePermissionInput = {
   actorId: string;
@@ -217,7 +211,7 @@ export function canAddNicknameDirectly(input: AddNicknameDirectlyInput) {
 export function canAddOwnProfileContentDirectly(
   input: AddOwnProfileContentDirectlyInput,
 ) {
-  return Boolean(input.targetUserId && input.targetUserId === input.actorId);
+  return canManagePerson(input);
 }
 
 export function canVoteOnProposal(input: ProposalVotePermissionInput) {

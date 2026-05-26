@@ -34,6 +34,7 @@ export const proposalTypeEnum = pgEnum("proposal_type", [
   "ADD_NICKNAME",
   "REMOVE_NICKNAME",
   "ADD_IMAGE",
+  "REMOVE_IMAGE",
   "REMOVE_POST",
   "CREATE_FICTIONAL_PERSON",
   "UPDATE_SITE_COPY",
@@ -194,6 +195,7 @@ export const nicknames = pgTable(
     status: nicknameStatusEnum("status").notNull().default("APPROVED"),
     isTemporary: boolean("is_temporary").notNull().default(false),
     proposedByUserId: text("proposed_by_user_id").references(() => users.id),
+    approvedViaProposalId: text("approved_via_proposal_id"),
     approvedAt: timestamp("approved_at", { withTimezone: true }),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -439,6 +441,32 @@ export const auditLogs = pgTable(
   },
   (table) => [
     index("audit_logs_entity_idx").on(table.entityType, table.entityId),
+  ],
+);
+
+export const rateLimits = pgTable(
+  "rate_limits",
+  {
+    id: text("id").primaryKey(),
+    scope: text("scope").notNull(),
+    identifierHash: text("identifier_hash").notNull(),
+    action: text("action").notNull(),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    windowSeconds: integer("window_seconds").notNull(),
+    count: integer("count").notNull().default(0),
+    blockedCount: integer("blocked_count").notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("rate_limits_lookup_idx").on(
+      table.scope,
+      table.identifierHash,
+      table.action,
+      table.windowStart,
+    ),
+    index("rate_limits_updated_idx").on(table.updatedAt),
   ],
 );
 

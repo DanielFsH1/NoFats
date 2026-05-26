@@ -164,39 +164,48 @@ describe("canManagePerson", () => {
 });
 
 describe("canAddNicknameDirectly", () => {
-  it("only lets a person add nicknames directly to their own real profile", () => {
-    expect(canAddNicknameDirectly({ actorId: "u1", targetUserId: "u1" })).toBe(
-      true,
-    );
-    expect(canAddNicknameDirectly({ actorId: "u1", targetUserId: "u2" })).toBe(
-      false,
-    );
-    expect(canAddNicknameDirectly({ actorId: "u1", targetUserId: null })).toBe(
-      false,
-    );
+  it("lets users add nicknames directly to their own profile and fictional profiles only", () => {
+    expect(
+      canAddNicknameDirectly({
+        actor: { id: "u1", role: "USER" },
+        target: { kind: "REAL", userId: "u1" },
+      }),
+    ).toBe(true);
+    expect(
+      canAddNicknameDirectly({
+        actor: { id: "u1", role: "USER" },
+        target: { kind: "REAL", userId: "u2" },
+      }),
+    ).toBe(false);
+    expect(
+      canAddNicknameDirectly({
+        actor: { id: "u1", role: "USER" },
+        target: { kind: "FICTIONAL", userId: null },
+      }),
+    ).toBe(true);
   });
 });
 
 describe("canAddOwnProfileContentDirectly", () => {
-  it("only lets a person add photos or social content directly to their own real profile", () => {
+  it("lets users add photos directly to their own profile and fictional profiles only", () => {
     expect(
       canAddOwnProfileContentDirectly({
-        actorId: "u1",
-        targetUserId: "u1",
+        actor: { id: "u1", role: "USER" },
+        target: { kind: "REAL", userId: "u1" },
       }),
     ).toBe(true);
     expect(
       canAddOwnProfileContentDirectly({
-        actorId: "u1",
-        targetUserId: "u2",
+        actor: { id: "u1", role: "USER" },
+        target: { kind: "REAL", userId: "u2" },
       }),
     ).toBe(false);
     expect(
       canAddOwnProfileContentDirectly({
-        actorId: "u1",
-        targetUserId: null,
+        actor: { id: "u1", role: "USER" },
+        target: { kind: "FICTIONAL", userId: null },
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 });
 

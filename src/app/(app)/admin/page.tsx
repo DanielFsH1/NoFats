@@ -14,11 +14,18 @@ import { roleLabel, slotStatusLabel } from "@/lib/product/presentation";
 import { requireAdmin } from "@/lib/session";
 import {
   Copy,
+  Hash,
+  Image as ImageIcon,
+  MessageCircle,
   PencilLine,
   SlidersHorizontal,
+  ThumbsUp,
   UserPlus,
+  Users,
   UsersRound,
+  Vote,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -34,23 +41,23 @@ export default async function AdminPage({
     getAppSettings(),
   ]);
 
-  const metrics = [
-    ["Usuarios reales", overview.metrics.realUsers],
-    ["Perfiles totales", overview.metrics.totalPeople],
-    ["Perfiles no reales", overview.metrics.fictionalPeople],
-    ["Apodos aprobados", overview.metrics.approvedNicknames],
-    ["Propuestas pendientes", overview.metrics.pendingProposals],
-    ["Imagenes aprobadas", overview.metrics.approvedImages],
-    ["Publicaciones", overview.metrics.totalPosts],
-    ["Comentarios", overview.metrics.totalComments],
-    ["Votos", overview.metrics.totalVotes],
+  const metrics: [string, number, LucideIcon, string][] = [
+    ["Usuarios reales", overview.metrics.realUsers, Users, "var(--accent)"],
+    ["Perfiles totales", overview.metrics.totalPeople, UsersRound, "var(--blue)"],
+    ["Perfiles no reales", overview.metrics.fictionalPeople, UsersRound, "var(--coral)"],
+    ["Apodos aprobados", overview.metrics.approvedNicknames, Hash, "var(--accent)"],
+    ["Propuestas pendientes", overview.metrics.pendingProposals, Vote, "var(--warning)"],
+    ["Imagenes aprobadas", overview.metrics.approvedImages, ImageIcon, "var(--success)"],
+    ["Publicaciones", overview.metrics.totalPosts, MessageCircle, "var(--blue)"],
+    ["Comentarios", overview.metrics.totalComments, MessageCircle, "var(--muted)"],
+    ["Votos", overview.metrics.totalVotes, ThumbsUp, "var(--coral)"],
   ];
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-5 sm:space-y-6">
       <div className="max-w-3xl">
-        <h1 className="text-4xl font-black">Administracion</h1>
-        <p className="mt-2 text-[var(--muted)]">
+        <h1 className="text-3xl font-black sm:text-4xl">Administracion</h1>
+        <p className="mt-2 text-sm text-[var(--muted)] sm:text-base">
           Cupos, perfiles, usuarios, metricas y moderacion basica.
         </p>
       </div>
@@ -67,18 +74,30 @@ export default async function AdminPage({
         </section>
       ) : null}
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {metrics.map(([label, value]) => (
-          <div key={label} className="surface rounded-[24px] p-5">
-            <p className="text-sm font-bold text-[var(--muted)]">{label}</p>
-            <p className="mt-2 text-4xl font-black">{value}</p>
+      <section className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
+        {metrics.map(([label, value, Icon, color]) => (
+          <div key={label} className="surface rounded-[24px] p-4 sm:p-5 transition-all duration-200 hover:shadow-md">
+            <div className="flex items-center gap-2">
+              <span
+                className="grid size-8 place-items-center rounded-lg"
+                style={{ backgroundColor: `color-mix(in srgb, ${color} 14%, transparent)` }}
+              >
+                <Icon
+                  className="size-4"
+                  style={{ color }}
+                  aria-hidden
+                />
+              </span>
+              <p className="text-sm font-bold text-[var(--muted)]">{label}</p>
+            </div>
+            <p className="mt-3 text-4xl font-black">{value}</p>
           </div>
         ))}
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[0.75fr_1.25fr]">
-        <div className="surface rounded-[28px] p-6">
-          <h2 className="flex items-center gap-2 text-2xl font-black">
+        <div className="surface rounded-[28px] p-4 sm:p-6">
+          <h2 className="flex items-center gap-2 text-xl font-black sm:text-2xl">
             <SlidersHorizontal className="size-5" aria-hidden />
             Umbrales de votacion
           </h2>
@@ -127,8 +146,8 @@ export default async function AdminPage({
           </form>
         </div>
 
-        <div className="surface rounded-[28px] p-6">
-          <h2 className="flex items-center gap-2 text-2xl font-black">
+        <div className="surface rounded-[28px] p-4 sm:p-6">
+          <h2 className="flex items-center gap-2 text-xl font-black sm:text-2xl">
             <PencilLine className="size-5" aria-hidden />
             Textos principales
           </h2>
@@ -236,8 +255,8 @@ export default async function AdminPage({
       </section>
 
       <section className="grid gap-6 lg:grid-cols-2">
-        <div className="surface rounded-[28px] p-6">
-          <h2 className="flex items-center gap-2 text-2xl font-black">
+        <div className="surface rounded-[28px] p-4 sm:p-6">
+          <h2 className="flex items-center gap-2 text-xl font-black sm:text-2xl">
             <UserPlus className="size-5" aria-hidden />
             Crear cupo real
           </h2>
@@ -279,8 +298,8 @@ export default async function AdminPage({
           </div>
         </div>
 
-        <div className="surface rounded-[28px] p-6">
-          <h2 className="flex items-center gap-2 text-2xl font-black">
+        <div className="surface rounded-[28px] p-4 sm:p-6">
+          <h2 className="flex items-center gap-2 text-xl font-black sm:text-2xl">
             <UsersRound className="size-5" aria-hidden />
             Crear perfil no real
           </h2>
@@ -301,8 +320,8 @@ export default async function AdminPage({
         </div>
       </section>
 
-      <section className="surface rounded-[28px] p-6">
-        <h2 className="text-2xl font-black">Usuarios</h2>
+      <section className="surface rounded-[28px] p-4 sm:p-6">
+        <h2 className="text-xl font-black sm:text-2xl">Usuarios</h2>
         <div className="mt-5 overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead>
@@ -320,7 +339,17 @@ export default async function AdminPage({
                   <td className="py-3 font-semibold">{user.name}</td>
                   <td>{user.email}</td>
                   <td>{roleLabel(user.role)}</td>
-                  <td>{user.disabled ? "Desactivado" : "Activo"}</td>
+                  <td>
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                        user.disabled
+                          ? "bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] text-[var(--danger)]"
+                          : "bg-[color-mix(in_srgb,var(--success)_12%,transparent)] text-[var(--success)]"
+                      }`}
+                    >
+                      {user.disabled ? "Desactivado" : "Activo"}
+                    </span>
+                  </td>
                   <td>
                     <form action={toggleUserDisabledAction}>
                       <input type="hidden" name="userId" value={user.id} />

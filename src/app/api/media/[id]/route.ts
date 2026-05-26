@@ -2,6 +2,10 @@ import { get } from "@vercel/blob";
 import { auth } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { mediaAssets } from "@/lib/db/schema";
+import {
+  assertCanViewPrivateMedia,
+  PrivateMediaAccessError,
+} from "@/lib/security/permissions";
 import { eq, isNull, and } from "drizzle-orm";
 import { headers } from "next/headers";
 
@@ -13,8 +17,13 @@ export async function GET(
     headers: await headers(),
   });
 
-  if (!session?.user) {
-    return new Response("Unauthorized", { status: 401 });
+  try {
+    assertCanViewPrivateMedia(session);
+  } catch (error) {
+    if (error instanceof PrivateMediaAccessError) {
+      return new Response(error.message, { status: error.status });
+    }
+    throw error;
   }
 
   const { id } = await context.params;

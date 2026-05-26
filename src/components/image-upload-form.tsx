@@ -2,7 +2,7 @@
 
 import { SubmitButton } from "@/components/submit-button";
 import { ImagePlus } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 
 export function ImageUploadForm({
   action,
@@ -11,9 +11,31 @@ export function ImageUploadForm({
   action: (formData: FormData) => void | Promise<void>;
   personId: string;
 }) {
+  type UploadState = { ok: boolean; message: string };
   const inputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
+  const [state, formAction] = useActionState(
+    async (_state: UploadState, formData: FormData): Promise<UploadState> => {
+      try {
+        await action(formData);
+        return {
+          ok: true,
+          message:
+            "Foto enviada. Si necesita aprobacion, aparecera como pendiente.",
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          message:
+            error instanceof Error
+              ? error.message
+              : "No pudimos subir la foto.",
+        };
+      }
+    },
+    { ok: false, message: "" },
+  );
 
   useEffect(() => {
     return () => {
@@ -24,12 +46,13 @@ export function ImageUploadForm({
   }, [previewUrl]);
 
   return (
-    <form action={action} className="mt-4 space-y-3">
+    <form action={formAction} className="mt-4 space-y-3">
       <input type="hidden" name="personId" value={personId} />
       <input
         ref={inputRef}
         name="image"
         type="file"
+        aria-label="Seleccionar foto"
         accept="image/png,image/jpeg,image/webp,image/gif"
         required
         className="sr-only"
@@ -66,6 +89,18 @@ export function ImageUploadForm({
       <SubmitButton variant="secondary" disabled={!fileName}>
         Subir foto
       </SubmitButton>
+      {state.message ? (
+        <p
+          role="status"
+          className={`rounded-2xl border p-3 text-sm ${
+            state.ok
+              ? "border-[color-mix(in_srgb,var(--success)_32%,transparent)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)]"
+              : "border-[color-mix(in_srgb,var(--danger)_28%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)]"
+          }`}
+        >
+          {state.message}
+        </p>
+      ) : null}
     </form>
   );
 }

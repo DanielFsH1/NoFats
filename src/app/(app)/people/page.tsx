@@ -1,26 +1,39 @@
+import { PaginationControls } from "@/components/pagination-controls";
 import { PersonAvatar } from "@/components/person-avatar";
 import { getPeopleSummaries } from "@/lib/data/queries";
+import { paginateItems, parsePageParam } from "@/lib/product/pagination";
 import { getProfileTheme } from "@/lib/product/profile-themes";
 import { requireUser } from "@/lib/session";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-export default async function PeoplePage() {
+export default async function PeoplePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { person: currentPerson } = await requireUser();
-  const people = await getPeopleSummaries();
+  const [people, query] = await Promise.all([
+    getPeopleSummaries(),
+    searchParams,
+  ]);
+  const peoplePage = paginateItems(people, {
+    page: parsePageParam(query.page),
+    pageSize: 16,
+  });
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-5 sm:space-y-6">
       <div className="max-w-3xl">
-        <h1 className="text-4xl font-black">Personas</h1>
-        <p className="mt-2 text-[var(--muted)]">
+        <h1 className="text-3xl font-black sm:text-4xl">Personas</h1>
+        <p className="mt-2 text-sm text-[var(--muted)] sm:text-base">
           Perfiles del grupo, apodos del dia y fotos que cambian con el
           calendario.
         </p>
       </div>
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {people.map((person) => {
+      <section className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
+        {peoplePage.items.map((person) => {
           const isOwnProfile = person.id === currentPerson.id;
           const theme = getProfileTheme(person.themeStyle, person.themeColor);
 
@@ -28,23 +41,23 @@ export default async function PeoplePage() {
             <Link
               href={`/people/${person.id}`}
               key={person.id}
-              className="group relative overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--surface)] shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl"
+              className="group relative overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--surface)] card-interactive"
             >
               {person.pendingProposalCount > 0 ? (
                 <span
-                  className="absolute right-3 top-3 z-10 grid min-h-6 min-w-6 place-items-center rounded-full bg-[var(--danger)] px-2 text-xs font-black text-white shadow-[var(--shadow-soft)]"
+                  className="animate-pulse-badge absolute right-3 top-3 z-10 grid min-h-6 min-w-6 place-items-center rounded-full bg-[var(--danger)] px-2 text-xs font-black text-[var(--danger-contrast)] shadow-[var(--shadow-soft)]"
                   aria-label={`${person.pendingProposalCount} pendientes por aprobar`}
                 >
                   {person.pendingProposalCount}
                 </span>
               ) : null}
               <div
-                className="h-28 opacity-95"
+                className="h-28 opacity-95 transition-all duration-300 group-hover:scale-105"
                 style={{
                   background: theme.banner,
                 }}
               />
-              <div className="-mt-10 p-5">
+              <div className="-mt-10 p-4 sm:p-5">
                 <PersonAvatar
                   dailyPhoto={person.dailyPhoto}
                   name={person.displayName}
@@ -78,6 +91,11 @@ export default async function PeoplePage() {
           );
         })}
       </section>
+      <PaginationControls
+        page={peoplePage.page}
+        totalPages={peoplePage.totalPages}
+        searchParams={query}
+      />
     </div>
   );
 }

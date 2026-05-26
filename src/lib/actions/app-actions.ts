@@ -17,6 +17,7 @@ import {
   users,
 } from "@/lib/db/schema";
 import { getVotingThreshold } from "@/lib/data/queries";
+import { deleteImageProposalBlobs } from "@/lib/data/media-cleanup";
 import { rejectExpiredProposals } from "@/lib/data/proposal-expiration";
 import {
   getAppSettings,
@@ -25,10 +26,10 @@ import {
 } from "@/lib/data/settings";
 import { id } from "@/lib/ids";
 import { getTomorrowDateKey } from "@/lib/product/dates";
+import { getProposalVoteReadiness } from "@/lib/product/proposal-voting";
 import {
   canAddNicknameDirectly,
   canManagePerson,
-  canVoteOnProposal,
   getProposalThresholds,
   hasDuplicateNicknameValue,
   mergeSiteCopy,
@@ -36,7 +37,7 @@ import {
   normalizeVoteSettings,
   shouldReplacePrimaryNickname,
 } from "@/lib/product/rules";
-import { isProposalExpired } from "@/lib/product/proposal-expiration";
+import { rateLimitByUser } from "@/lib/security/rate-limit";
 import { createInviteToken, hashInviteToken } from "@/lib/security/token";
 import { requireAdmin, requireUser } from "@/lib/session";
 import { getBaseUrl } from "@/lib/urls";
@@ -169,6 +170,30 @@ async function assertNicknameIsUnique(
   }
 }
 
+async function findExistingNicknameId(personId: string, value: string) {
+  const existingNicknames = await getDb()
+    .select({ id: nicknames.id, value: nicknames.value })
+    .from(nicknames)
+    .where(and(eq(nicknames.personId, personId), isNull(nicknames.deletedAt)));
+  const normalizedValue = normalizeNicknameValue(value);
+
+  return (
+    existingNicknames.find(
+      (nickname) => normalizeNicknameValue(nickname.value) === normalizedValue,
+    )?.id ?? null
+  );
+}
+
+async function findNicknameIdByExactValue(personId: string, value: string) {
+  const [nickname] = await getDb()
+    .select({ id: nicknames.id })
+    .from(nicknames)
+    .where(and(eq(nicknames.personId, personId), eq(nicknames.value, value)))
+    .limit(1);
+
+  return nickname?.id ?? null;
+}
+
 async function createPendingProposalWithCreatorApproval(input: {
   type: typeof proposals.$inferInsert.type;
   targetPersonId?: string;
@@ -235,6 +260,7 @@ async function createPendingProposal(input: {
 
 export async function createRegistrationSlotAction(formData: FormData) {
   const { user } = await requireAdmin();
+  await rateLimitByUser(user.id, "admin:write");
   const shortName = shortTextSchema.parse(getString(formData, "shortName"));
   const token = createInviteToken();
   const slotId = id("slot");
@@ -261,6 +287,7 @@ export async function createRegistrationSlotAction(formData: FormData) {
 
 export async function disableRegistrationSlotAction(formData: FormData) {
   const { user } = await requireAdmin();
+  await rateLimitByUser(user.id, "admin:write");
   const slotId = getString(formData, "slotId");
 
   await getDb()
@@ -280,6 +307,7 @@ export async function disableRegistrationSlotAction(formData: FormData) {
 
 export async function createFictionalPersonAction(formData: FormData) {
   const { user } = await requireAdmin();
+  await rateLimitByUser(user.id, "admin:write");
   const displayName = shortTextSchema.parse(getString(formData, "displayName"));
   const fullName = getString(formData, "fullName").trim();
   const personId = id("person");
@@ -305,6 +333,7 @@ export async function createFictionalPersonAction(formData: FormData) {
 
 export async function proposeFictionalPersonAction(formData: FormData) {
   const { user } = await requireUser();
+  await rateLimitByUser(user.id, "proposal:create");
   const displayName = shortTextSchema.parse(getString(formData, "displayName"));
   const fullName = getString(formData, "fullName").trim();
 
@@ -327,6 +356,7 @@ export async function proposeFictionalPersonAction(formData: FormData) {
 
 export async function proposeSiteCopyAction(formData: FormData) {
   const { user } = await requireUser();
+  await rateLimitByUser(user.id, "proposal:create");
   const copy = siteCopySchema.parse({
     appName: getString(formData, "appName"),
     loginEyebrow: getString(formData, "loginEyebrow"),
@@ -355,6 +385,7 @@ export async function proposeSiteCopyAction(formData: FormData) {
 
 export async function updateSiteCopyFieldAction(formData: FormData) {
   const { user } = await requireUser();
+  await rateLimitByUser(user.id, "settings:update");
   const before = await getAppSettings();
   const field = getString(formData, "field");
   const value = getString(formData, "value");
@@ -400,6 +431,7 @@ export async function updateSiteCopyFieldAction(formData: FormData) {
 
 export async function updateSiteCopyAction(formData: FormData) {
   const { user } = await requireAdmin();
+  await rateLimitByUser(user.id, "settings:update");
   const before = await getAppSettings();
   const copy = siteCopySchema.parse({
     appName: getString(formData, "appName"),
@@ -432,6 +464,7 @@ export async function updateSiteCopyAction(formData: FormData) {
 
 export async function updateVoteSettingsAction(formData: FormData) {
   const { user } = await requireAdmin();
+  await rateLimitByUser(user.id, "settings:update");
   const before = await getAppSettings();
   const settings = normalizeVoteSettings(
     voteSettingsSchema.parse({
@@ -461,6 +494,7 @@ export async function updateVoteSettingsAction(formData: FormData) {
 
 export async function updateProfileAction(formData: FormData) {
   const { user } = await requireUser();
+  await rateLimitByUser(user.id, "profile:update");
   const personId = getString(formData, "personId");
   const db = getDb();
   const [target] = await db
@@ -517,6 +551,7 @@ export async function updateProfileAction(formData: FormData) {
 
 export async function addNicknameAction(formData: FormData) {
   const { user } = await requireUser();
+  await rateLimitByUser(user.id, "nickname:add");
   const personId = getString(formData, "personId");
   const value = shortTextSchema.parse(getString(formData, "nickname"));
   const db = getDb();
@@ -533,8 +568,8 @@ export async function addNicknameAction(formData: FormData) {
   await assertNicknameIsUnique(personId, value);
 
   const canDirectlyEdit = canAddNicknameDirectly({
-    actorId: user.id,
-    targetUserId: target.userId,
+    actor: { id: user.id, role: user.role },
+    target: { kind: target.kind, userId: target.userId },
   });
 
   if (canDirectlyEdit) {
@@ -549,6 +584,14 @@ export async function addNicknameAction(formData: FormData) {
     });
 
     await promoteApprovedNicknameIfNeeded(target, nicknameId);
+
+    await audit({
+      actorUserId: user.id,
+      entityType: "nickname",
+      entityId: nicknameId,
+      action: "nickname.added_directly",
+      after: { personId, value, targetKind: target.kind },
+    });
 
     await logActivity({
       actorUserId: user.id,
@@ -573,6 +616,7 @@ export async function addNicknameAction(formData: FormData) {
 
 export async function removeNicknameAction(formData: FormData) {
   const { user } = await requireUser();
+  await rateLimitByUser(user.id, "nickname:remove");
   const nicknameId = getString(formData, "nicknameId");
   const db = getDb();
   const [nickname] = await db
@@ -620,8 +664,65 @@ export async function removeNicknameAction(formData: FormData) {
   revalidatePath("/proposals");
 }
 
+export async function removeImageAction(formData: FormData) {
+  const { user } = await requireUser();
+  await rateLimitByUser(user.id, "media:upload");
+  const mediaId = getString(formData, "mediaId");
+  const db = getDb();
+  const [asset] = await db
+    .select()
+    .from(mediaAssets)
+    .where(eq(mediaAssets.id, mediaId))
+    .limit(1);
+
+  if (!asset || asset.deletedAt) {
+    throw new Error("Foto no encontrada.");
+  }
+
+  const [target] = await db
+    .select()
+    .from(people)
+    .where(eq(people.id, asset.personId))
+    .limit(1);
+
+  if (!target) {
+    throw new Error("Perfil no encontrado.");
+  }
+
+  const canDirectlyEdit = canManagePerson({
+    actor: { id: user.id, role: user.role },
+    target: { kind: target.kind, userId: target.userId },
+  });
+
+  if (canDirectlyEdit) {
+    await db
+      .update(mediaAssets)
+      .set({ status: "DELETED", deletedAt: new Date() })
+      .where(eq(mediaAssets.id, mediaId));
+  } else {
+    await createPendingProposalWithCreatorApproval({
+      type: "REMOVE_IMAGE",
+      targetPersonId: target.id,
+      createdByUserId: user.id,
+      title: "Quitar una foto",
+      summary: asset.altText || "Solicitud de eliminacion de foto.",
+      payload: {
+        mediaId: asset.id,
+        altText: asset.altText,
+        width: asset.width,
+        height: asset.height,
+      },
+    });
+  }
+
+  revalidatePath(`/people/${target.id}`);
+  revalidatePath("/gallery");
+  revalidatePath("/proposals");
+}
+
 export async function nominateDailyNicknameAction(formData: FormData) {
   const { user } = await requireUser();
+  await rateLimitByUser(user.id, "daily:nickname");
   const personId = getString(formData, "personId");
   const nicknameId = getString(formData, "nicknameId");
 
@@ -636,11 +737,21 @@ export async function nominateDailyNicknameAction(formData: FormData) {
     })
     .onConflictDoNothing();
 
+  await logActivity({
+    actorUserId: user.id,
+    personId,
+    type: "daily_nickname.nominated",
+    message: `${user.name} postulo un apodo para el dia siguiente.`,
+    metadata: { nicknameId },
+  });
+
   revalidatePath(`/people/${personId}`);
+  revalidatePath("/");
 }
 
 export async function createPostAction(formData: FormData) {
   const { user } = await requireUser();
+  await rateLimitByUser(user.id, "post:create");
   const personId = getString(formData, "personId");
   const parentPostId = getString(formData, "parentPostId") || null;
   const body = bodySchema.parse(getString(formData, "body"));
@@ -670,6 +781,7 @@ export async function createPostAction(formData: FormData) {
 
 export async function deletePostAction(formData: FormData) {
   const { user } = await requireUser();
+  await rateLimitByUser(user.id, "post:delete");
   const postId = getString(formData, "postId");
   const db = getDb();
   const [post] = await db
@@ -720,6 +832,7 @@ export async function deletePostAction(formData: FormData) {
 
 export async function addCommentAction(formData: FormData) {
   const { user } = await requireUser();
+  await rateLimitByUser(user.id, "comment:create");
   const subjectType = getString(formData, "subjectType") as
     | "PERSON"
     | "PROPOSAL"
@@ -754,6 +867,7 @@ export async function addCommentAction(formData: FormData) {
 
 export async function addProposalCommentAction(formData: FormData) {
   const { user } = await requireUser();
+  await rateLimitByUser(user.id, "comment:create");
   const proposalId = getString(formData, "proposalId");
   const body = bodySchema.parse(getString(formData, "body"));
 
@@ -771,6 +885,7 @@ export async function addProposalCommentAction(formData: FormData) {
 
 export async function voteProposalAction(formData: FormData) {
   const { user } = await requireUser();
+  await rateLimitByUser(user.id, "proposal:vote");
   await rejectExpiredProposals();
   const proposalId = getString(formData, "proposalId");
   const decision =
@@ -784,30 +899,47 @@ export async function voteProposalAction(formData: FormData) {
     .where(eq(proposals.id, proposalId))
     .limit(1);
 
-  if (!proposal || proposal.status !== "PENDING") {
-    throw new Error("La propuesta ya no esta pendiente.");
+  if (!proposal) {
+    revalidatePath("/proposals");
+    return;
   }
 
-  if (isProposalExpired(proposal.createdAt)) {
-    await db
+  const readiness = getProposalVoteReadiness({
+    actorId: user.id,
+    proposal,
+  });
+
+  if (!readiness.ok && readiness.reason === "settled") {
+    revalidatePath("/proposals");
+    if (proposal.targetPersonId) {
+      revalidatePath(`/people/${proposal.targetPersonId}`);
+    }
+    return;
+  }
+
+  if (!readiness.ok && readiness.reason === "expired") {
+    const rejectedProposals = await db
       .update(proposals)
       .set({
         status: "REJECTED",
         resolvedAt: new Date(),
         updatedAt: new Date(),
       })
-      .where(eq(proposals.id, proposalId));
-    throw new Error("Esta propuesta expiro despues de 48 horas.");
+      .where(and(eq(proposals.id, proposalId), eq(proposals.status, "PENDING")))
+      .returning();
+    if (rejectedProposals.length > 0 && proposal.type === "ADD_IMAGE") {
+      await deleteImageProposalBlobs(proposal.payload);
+    }
+    revalidatePath("/proposals");
+    if (proposal.targetPersonId) {
+      revalidatePath(`/people/${proposal.targetPersonId}`);
+    }
+    return;
   }
 
-  if (
-    !canVoteOnProposal({
-      actorId: user.id,
-      proposalCreatorId: proposal.createdByUserId,
-      proposalType: proposal.type,
-    })
-  ) {
-    throw new Error("Otra persona debe aprobar esta propuesta.");
+  if (!readiness.ok && readiness.reason === "self_vote_blocked") {
+    revalidatePath("/proposals");
+    return;
   }
 
   await db
@@ -885,35 +1017,79 @@ async function evaluateProposal(proposalId: string) {
     rejectionThreshold > 0 &&
     Number(rejectionCount.value) >= rejectionThreshold
   ) {
-    await db
+    const rejectedProposals = await db
       .update(proposals)
       .set({
         status: "REJECTED",
         resolvedAt: new Date(),
         updatedAt: new Date(),
       })
-      .where(eq(proposals.id, proposalId));
+      .where(and(eq(proposals.id, proposalId), eq(proposals.status, "PENDING")))
+      .returning();
+    if (rejectedProposals.length > 0 && proposal.type === "ADD_IMAGE") {
+      await deleteImageProposalBlobs(proposal.payload);
+    }
   }
 }
 
 async function applyProposal(proposal: typeof proposals.$inferSelect) {
   const db = getDb();
+  const [claimedProposal] = await db
+    .update(proposals)
+    .set({ status: "APPROVED", updatedAt: new Date() })
+    .where(and(eq(proposals.id, proposal.id), eq(proposals.status, "PENDING")))
+    .returning();
+
+  if (!claimedProposal) {
+    return;
+  }
+
+  proposal = claimedProposal;
   const payload = proposal.payload as Record<string, unknown>;
 
   if (proposal.type === "ADD_NICKNAME" && proposal.targetPersonId) {
-    const nicknameId = id("nick");
     const value = String(payload.value ?? "");
-    await assertNicknameIsUnique(proposal.targetPersonId, value, {
-      excludeProposalId: proposal.id,
-    });
-    await db.insert(nicknames).values({
-      id: nicknameId,
-      personId: proposal.targetPersonId,
+    let nicknameId = await findExistingNicknameId(
+      proposal.targetPersonId,
       value,
-      status: "APPROVED",
-      proposedByUserId: proposal.createdByUserId,
-      approvedAt: new Date(),
-    });
+    );
+
+    if (!nicknameId) {
+      const createdNicknameId = id("nick");
+      const [createdNickname] = await db
+        .insert(nicknames)
+        .values({
+          id: createdNicknameId,
+          personId: proposal.targetPersonId,
+          value,
+          status: "APPROVED",
+          proposedByUserId: proposal.createdByUserId,
+          approvedViaProposalId: proposal.id,
+          approvedAt: new Date(),
+        })
+        .onConflictDoNothing({
+          target: [nicknames.personId, nicknames.value],
+        })
+        .returning();
+      nicknameId =
+        createdNickname?.id ??
+        (await findExistingNicknameId(proposal.targetPersonId, value)) ??
+        (await findNicknameIdByExactValue(proposal.targetPersonId, value));
+
+      if (!nicknameId) {
+        return;
+      }
+    }
+
+    await db
+      .update(nicknames)
+      .set({
+        status: "APPROVED",
+        deletedAt: null,
+        approvedViaProposalId: proposal.id,
+        approvedAt: new Date(),
+      })
+      .where(eq(nicknames.id, nicknameId));
 
     const [target] = await db
       .select()
@@ -931,6 +1107,13 @@ async function applyProposal(proposal: typeof proposals.$inferSelect) {
       .update(nicknames)
       .set({ status: "DELETED", deletedAt: new Date() })
       .where(eq(nicknames.id, String(payload.nicknameId)));
+  }
+
+  if (proposal.type === "REMOVE_IMAGE") {
+    await db
+      .update(mediaAssets)
+      .set({ status: "DELETED", deletedAt: new Date() })
+      .where(eq(mediaAssets.id, String(payload.mediaId)));
   }
 
   if (proposal.type === "CREATE_FICTIONAL_PERSON") {
@@ -1006,6 +1189,7 @@ async function applyProposal(proposal: typeof proposals.$inferSelect) {
 
 export async function toggleUserDisabledAction(formData: FormData) {
   const { user } = await requireAdmin();
+  await rateLimitByUser(user.id, "admin:write");
   const userId = getString(formData, "userId");
   const disabled = getString(formData, "disabled") === "true";
 

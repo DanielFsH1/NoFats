@@ -1,13 +1,30 @@
 "use client";
 
 import { normalizeNicknameValue } from "@/lib/product/rules";
-import { CalendarPlus, Search, Trash2 } from "lucide-react";
+import {
+  CalendarCheck,
+  CalendarPlus,
+  ChevronDown,
+  Loader2,
+  MessageCircle,
+  Search,
+  Trash2,
+} from "lucide-react";
 import { useMemo, useState } from "react";
+import { useFormStatus } from "react-dom";
 
 type Nickname = {
   id: string;
   value: string;
   status: string;
+  tomorrowNominationCount?: number;
+  nominatedByCurrentUserForTomorrow?: boolean;
+  voteComments?: {
+    id: string;
+    authorName: string;
+    decision: "APPROVE" | "REJECT";
+    comment: string;
+  }[];
 };
 
 type ServerAction = (formData: FormData) => void | Promise<void>;
@@ -24,6 +41,12 @@ export function NicknameList({
   removeAction: ServerAction;
 }) {
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [openCommentIds, setOpenCommentIds] = useState<string[]>([]);
+  const [optimisticNominations, setOptimisticNominations] = useState<string[]>(
+    [],
+  );
+  const pageSize = 8;
   const indexedNicknames = useMemo(
     () =>
       nicknames.map((nickname, index) => ({
@@ -43,6 +66,12 @@ export function NicknameList({
       normalizeNicknameValue(nickname.value).includes(normalizedQuery),
     );
   }, [indexedNicknames, query]);
+  const totalPages = Math.max(1, Math.ceil(filteredNicknames.length / pageSize));
+  const normalizedPage = Math.min(page, totalPages);
+  const paginatedNicknames = filteredNicknames.slice(
+    (normalizedPage - 1) * pageSize,
+    normalizedPage * pageSize,
+  );
 
   return (
     <div className="space-y-3">
@@ -57,57 +86,175 @@ export function NicknameList({
         />
       </label>
 
-      <div className="max-h-[22rem] space-y-2 overflow-y-auto pr-1 sm:max-h-[30rem]">
-        {filteredNicknames.map((nickname) => (
-          <div
-            key={nickname.id}
-            className="soft-card flex items-center justify-between gap-3 rounded-2xl p-3"
-          >
-            <span className="flex min-w-0 items-center gap-3">
-              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[var(--surface-strong)] text-xs font-black text-[var(--muted)]">
-                {nickname.number}
-              </span>
-              <span className="min-w-0">
-                <strong className="block truncate">{nickname.value}</strong>
-                {nickname.status === "TEMPORARY" ? (
-                  <span className="text-xs text-[var(--muted)]">inicial</span>
-                ) : null}
-              </span>
-            </span>
-            <div className="flex shrink-0 gap-1">
-              {nickname.status === "APPROVED" ? (
-                <form action={nominateAction}>
-                  <input type="hidden" name="personId" value={personId} />
-                  <input
-                    type="hidden"
-                    name="nicknameId"
-                    value={nickname.id}
-                  />
+      <div className="space-y-2">
+        {paginatedNicknames.map((nickname) => {
+          const optimisticallyNominated = optimisticNominations.includes(
+            nickname.id,
+          );
+          const nominatedByCurrentUser =
+            nickname.nominatedByCurrentUserForTomorrow ||
+            optimisticallyNominated;
+          const nominationCount =
+            (nickname.tomorrowNominationCount ?? 0) +
+            (optimisticallyNominated &&
+            !nickname.nominatedByCurrentUserForTomorrow
+              ? 1
+              : 0);
+
+          const voteComments = nickname.voteComments ?? [];
+          const commentsOpen = openCommentIds.includes(nickname.id);
+
+          return (
+            <article
+              key={nickname.id}
+              className="soft-card rounded-2xl p-3"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[var(--surface-strong)] text-xs font-black text-[var(--muted)]">
+                    {nickname.number}
+                  </span>
+                  <span className="min-w-0">
+                    <strong className="block truncate">{nickname.value}</strong>
+                    <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
+                      {nickname.status === "TEMPORARY" ? (
+                        <span>inicial</span>
+                      ) : null}
+                      {nickname.status === "APPROVED" ? (
+                        <span>
+                          {nominationCount}{" "}
+                          {nominationCount === 1
+                            ? "postulacion para manana"
+                            : "postulaciones para manana"}
+                        </span>
+                      ) : null}
+                      {voteComments.length > 0 ? (
+                        <span>{voteComments.length} comentarios de votos</span>
+                      ) : null}
+                      {nominatedByCurrentUser ? (
+                        <span
+                          role="status"
+                          className="rounded-full bg-[color-mix(in_srgb,var(--success)_14%,transparent)] px-2 py-0.5 font-black text-[var(--success)]"
+                        >
+                          Postulado
+                        </span>
+                      ) : null}
+                    </span>
+                  </span>
+                </span>
+                <div className="flex shrink-0 gap-1">
+                  {nickname.status === "APPROVED" ? (
+                    <form
+                      action={nominateAction}
+                      onSubmit={() =>
+                        setOptimisticNominations((current) =>
+                          current.includes(nickname.id)
+                            ? current
+                            : [...current, nickname.id],
+                        )
+                      }
+                    >
+                      <input type="hidden" name="personId" value={personId} />
+                      <input
+                        type="hidden"
+                        name="nicknameId"
+                        value={nickname.id}
+                      />
+                      <NominateButton
+                        nickname={nickname.value}
+                        nominated={nominatedByCurrentUser}
+                      />
+                    </form>
+                  ) : null}
+                  <form action={removeAction}>
+                    <input type="hidden" name="nicknameId" value={nickname.id} />
+                    <button
+                      type="submit"
+                      aria-label={`Quitar el apodo "${nickname.value}"`}
+                      title="Quitar apodo"
+                      className="inline-flex size-9 items-center justify-center rounded-full text-[var(--danger)] transition hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--danger)]"
+                    >
+                      <Trash2 className="size-4" aria-hidden />
+                    </button>
+                  </form>
+                </div>
+              </div>
+              {voteComments.length > 0 ? (
+                <div className="mt-2 rounded-xl bg-[var(--surface-muted)] p-3">
                   <button
-                    type="submit"
-                    aria-label={`Postular "${nickname.value}" para apodo del dia siguiente`}
-                    title="Postular para el dia siguiente"
-                    className="inline-flex size-9 items-center justify-center rounded-full text-[var(--accent)] transition hover:bg-[var(--surface-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                    type="button"
+                    onClick={() =>
+                      setOpenCommentIds((current) =>
+                        current.includes(nickname.id)
+                          ? current.filter((id) => id !== nickname.id)
+                          : [...current, nickname.id],
+                      )
+                    }
+                    className="flex w-full cursor-pointer items-center justify-between gap-3 text-left text-xs font-black text-[var(--muted)]"
+                    aria-label={`Ver comentarios de votos para "${nickname.value}"`}
                   >
-                    <CalendarPlus className="size-4" aria-hidden />
+                    <span className="inline-flex items-center gap-2">
+                      <MessageCircle className="size-4" aria-hidden />
+                      Comentarios de aprobacion
+                    </span>
+                    <ChevronDown
+                      className={`size-4 transition ${commentsOpen ? "rotate-180" : ""}`}
+                      aria-hidden
+                    />
                   </button>
-                </form>
+                  {commentsOpen ? (
+                    <div className="mt-3 space-y-2">
+                      {voteComments.map((vote) => (
+                        <p key={vote.id} className="text-sm">
+                          <strong>{vote.authorName}</strong>{" "}
+                          <span
+                            className={
+                              vote.decision === "APPROVE"
+                                ? "text-[var(--success)]"
+                                : "text-[var(--danger)]"
+                            }
+                          >
+                            {vote.decision === "APPROVE" ? "aprobo" : "rechazo"}
+                          </span>
+                          :{" "}
+                          <span className="text-[var(--muted)]">
+                            {vote.comment}
+                          </span>
+                        </p>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
               ) : null}
-              <form action={removeAction}>
-                <input type="hidden" name="nicknameId" value={nickname.id} />
-                <button
-                  type="submit"
-                  aria-label={`Quitar el apodo "${nickname.value}"`}
-                  title="Quitar apodo"
-                  className="inline-flex size-9 items-center justify-center rounded-full text-[var(--danger)] transition hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--danger)]"
-                >
-                  <Trash2 className="size-4" aria-hidden />
-                </button>
-              </form>
-            </div>
-          </div>
-        ))}
+            </article>
+          );
+        })}
       </div>
+      {filteredNicknames.length > pageSize ? (
+        <div className="flex items-center justify-center gap-2 pt-1">
+          <button
+            type="button"
+            disabled={normalizedPage <= 1}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            className="h-9 rounded-xl border border-[var(--border)] px-3 text-xs font-black disabled:opacity-45"
+          >
+            Anterior
+          </button>
+          <span className="text-xs font-black text-[var(--muted)]">
+            {normalizedPage} / {totalPages}
+          </span>
+          <button
+            type="button"
+            disabled={normalizedPage >= totalPages}
+            onClick={() =>
+              setPage((current) => Math.min(totalPages, current + 1))
+            }
+            className="h-9 rounded-xl border border-[var(--border)] px-3 text-xs font-black disabled:opacity-45"
+          >
+            Siguiente
+          </button>
+        </div>
+      ) : null}
 
       {filteredNicknames.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-[var(--border)] p-4 text-sm text-[var(--muted)]">
@@ -115,5 +262,37 @@ export function NicknameList({
         </p>
       ) : null}
     </div>
+  );
+}
+
+function NominateButton({
+  nickname,
+  nominated,
+}: {
+  nickname: string;
+  nominated: boolean;
+}) {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      type="submit"
+      disabled={pending || nominated}
+      aria-label={
+        nominated
+          ? `"${nickname}" ya esta postulado para el apodo del dia siguiente`
+          : `Postular "${nickname}" para apodo del dia siguiente`
+      }
+      title={nominated ? "Ya postulado para manana" : "Postular para manana"}
+      className="inline-flex size-9 items-center justify-center rounded-full text-[var(--accent)] transition hover:bg-[var(--surface-strong)] disabled:cursor-not-allowed disabled:bg-[color-mix(in_srgb,var(--success)_12%,transparent)] disabled:text-[var(--success)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+    >
+      {pending ? (
+        <Loader2 className="size-4 animate-spin" aria-hidden />
+      ) : nominated ? (
+        <CalendarCheck className="size-4" aria-hidden />
+      ) : (
+        <CalendarPlus className="size-4" aria-hidden />
+      )}
+    </button>
   );
 }

@@ -1,25 +1,15 @@
 import { signOutAction } from "@/lib/actions/auth-actions";
 import { formatDateTime } from "@/lib/product/dates";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { EditableSiteText } from "@/components/editable-site-text";
+import { MainNav } from "@/components/main-nav";
 import { getInitials } from "@/components/person-avatar";
+import { ScrollToTop } from "@/components/scroll-to-top";
+import { SidebarCollapseControl } from "@/components/sidebar-collapse";
 import { ThemeToggle } from "@/components/theme-toggle";
-import {
-  Activity,
-  GalleryHorizontalEnd,
-  Home,
-  LogOut,
-  Settings,
-  Shield,
-  UsersRound,
-} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { LogOut } from "lucide-react";
 import Link from "next/link";
-
-const nav = [
-  { href: "/", label: "Inicio", icon: Home },
-  { href: "/people", label: "Personas", icon: UsersRound },
-  { href: "/gallery", label: "Galeria", icon: GalleryHorizontalEnd },
-  { href: "/activity", label: "Actividad", icon: Activity },
-];
 
 export function AppShell({
   appName = "NoFats",
@@ -32,65 +22,84 @@ export function AppShell({
 }) {
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--background)_86%,transparent)] backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-3">
-              <span className="grid size-11 place-items-center rounded-2xl bg-[var(--accent)] font-black text-white shadow-[var(--shadow-soft)]">
+      {/* ── Desktop Sidebar (lg+) ─────────────────────── */}
+      <aside className="desktop-sidebar fixed inset-y-0 left-0 z-30 hidden w-[var(--sidebar-width)] flex-col overflow-visible border-r border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_96%,transparent)] backdrop-blur-xl lg:flex">
+        <SidebarCollapseControl />
+
+        {/* Logo area */}
+        <div className="border-b border-[var(--border)] px-5 py-5">
+          <div className="flex items-center gap-2">
+            <Link href="/" className="flex min-w-0 flex-1 items-center gap-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-[var(--accent)] text-sm font-black text-[var(--accent-contrast)] shadow-[var(--shadow-soft)]">
                 {getInitials(appName)}
               </span>
-              <span>
-                <span className="block text-lg font-black">{appName}</span>
-                <span className="block text-xs text-[var(--muted)]">
+              <span className="sidebar-label min-w-0">
+                <span className="block text-base font-black leading-tight">
+                  <span className="bg-[linear-gradient(135deg,var(--foreground),var(--accent))] bg-clip-text text-transparent">
+                    {appName}
+                  </span>
+                </span>
+                <span className="sidebar-date block text-[11px] text-[var(--muted)]">
                   {formatDateTime(new Date())}
                 </span>
               </span>
             </Link>
-            <EditableSiteText
-              field="appName"
-              value={appName}
-              label="Editar nombre de la app"
-            />
+            <span className="sidebar-edit">
+              <EditableSiteText
+                field="appName"
+                value={appName}
+                label="Editar nombre de la app"
+              />
+            </span>
           </div>
-          <nav
-            aria-label="Navegacion principal"
-            className="flex flex-wrap gap-2"
-          >
-            {nav.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-[var(--muted)] transition hover:bg-[var(--surface)] hover:text-[var(--foreground)]"
+        </div>
+
+        {/* Navigation */}
+        <div className="flex-1 overflow-y-auto px-3 py-4">
+          <MainNav personId={user.personId} role={user.role} variant="sidebar" />
+        </div>
+
+        {/* User area (bottom) */}
+        <div className="border-t border-[var(--border)] px-4 py-4">
+          <div className="flex items-center gap-3">
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[var(--surface-strong)] text-xs font-black text-[var(--foreground)]">
+              {getInitials(user.name)}
+            </span>
+            <span className="sidebar-user-name min-w-0 flex-1 truncate text-sm font-semibold">
+              {user.name}
+            </span>
+            <ThemeToggle />
+            <form action={signOutAction}>
+              <button
+                className="inline-flex size-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] transition-all duration-200 hover:border-[var(--danger)] hover:text-[var(--danger)] active:scale-95"
+                aria-label="Cerrar sesion"
+                title="Cerrar sesion"
               >
-                <item.icon className="size-4" aria-hidden />
-                {item.label}
-              </Link>
-            ))}
-            <Link
-              href={`/people/${user.personId}`}
-              className="inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-[var(--muted)] transition hover:bg-[var(--surface)] hover:text-[var(--foreground)]"
-            >
-              <Settings className="size-4" aria-hidden />
-              Mi perfil
-            </Link>
-            {user.role === "ADMIN" ? (
-              <Link
-                href="/admin"
-                className="inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-[var(--accent-ink)] transition hover:bg-[var(--surface)]"
-              >
-                <Shield className="size-4" aria-hidden />
-                Admin
-              </Link>
-            ) : null}
-          </nav>
+                <LogOut className="size-4" aria-hidden />
+              </button>
+            </form>
+          </div>
+        </div>
+      </aside>
+
+      {/* ── Mobile Header (<lg) ──────────────────────── */}
+      <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--background)_88%,transparent)] backdrop-blur-xl lg:hidden">
+        <div className="flex items-center justify-between px-4 py-3">
+          <Link href="/" className="flex items-center gap-2.5">
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[var(--accent)] text-sm font-black text-[var(--accent-contrast)] shadow-sm">
+              {getInitials(appName)}
+            </span>
+            <span className="text-base font-black">
+              <span className="bg-[linear-gradient(135deg,var(--foreground),var(--accent))] bg-clip-text text-transparent">
+                {appName}
+              </span>
+            </span>
+          </Link>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <form action={signOutAction} className="flex items-center gap-2">
-              <span className="hidden text-sm text-[var(--muted)] sm:block">
-                {user.name}
-              </span>
+            <form action={signOutAction}>
               <button
-                className="inline-flex size-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] transition hover:text-[var(--danger)]"
+                className="inline-flex size-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] transition hover:text-[var(--danger)] active:scale-95"
                 aria-label="Cerrar sesion"
               >
                 <LogOut className="size-4" aria-hidden />
@@ -99,16 +108,42 @@ export function AppShell({
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
-        {children}
+
+      {/* ── Main Content ─────────────────────────────── */}
+      <main className="px-4 pb-24 pt-5 sm:px-5 lg:ml-[var(--sidebar-width)] lg:px-8 lg:pb-8 lg:pt-8">
+        <div className="mx-auto max-w-6xl">{children}</div>
       </main>
+
+      {/* ── Mobile Bottom Tab Bar (<lg) ──────────────── */}
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex-nowrap overflow-x-auto border-t border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,transparent)] backdrop-blur-xl lg:hidden" aria-label="Navegacion principal">
+        <MainNav personId={user.personId} role={user.role} variant="bottom-bar" />
+      </nav>
+
+      <ScrollToTop />
+      <AutoRefresh />
     </div>
   );
 }
 
-export function EmptyState({ title, body }: { title: string; body: string }) {
+export function EmptyState({
+  title,
+  body,
+  icon: Icon,
+}: {
+  title: string;
+  body: string;
+  icon?: LucideIcon;
+}) {
   return (
-    <div className="rounded-[var(--radius)] border border-dashed border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_70%,transparent)] p-8 text-center">
+    <div className="animate-fade-in rounded-[var(--radius)] border border-dashed border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_70%,transparent)] p-8 text-center">
+      {Icon ? (
+        <div className="mx-auto mb-3 grid size-12 place-items-center rounded-2xl bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-strong))]">
+          <Icon
+            className="size-5 text-[var(--muted)]"
+            aria-hidden
+          />
+        </div>
+      ) : null}
       <h2 className="text-lg font-bold">{title}</h2>
       <p className="mt-2 text-sm text-[var(--muted)]">{body}</p>
     </div>

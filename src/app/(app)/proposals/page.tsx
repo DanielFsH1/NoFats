@@ -1,4 +1,5 @@
 import { EmptyState } from "@/components/app-shell";
+import { PaginationControls } from "@/components/pagination-controls";
 import { PersonAvatar } from "@/components/person-avatar";
 import { SubmitButton } from "@/components/submit-button";
 import {
@@ -20,39 +21,49 @@ import {
   proposalTypeLabel,
   voteDecisionLabel,
 } from "@/lib/product/presentation";
+import { paginateItems, parsePageParam } from "@/lib/product/pagination";
 import { getProposalThresholds } from "@/lib/product/rules";
 import { requireUser } from "@/lib/session";
-import { Check, MessageCircle, PencilLine, Plus, X } from "lucide-react";
+import { Check, MessageCircle, PencilLine, Plus, Vote, X } from "lucide-react";
 import Image from "next/image";
 
 export const dynamic = "force-dynamic";
 
-export default async function ProposalsPage() {
+export default async function ProposalsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { user } = await requireUser();
-  const [proposals, eligibleUsers, settings] = await Promise.all([
+  const [proposals, query, eligibleUsers, settings] = await Promise.all([
     getProposalsWithVotes(),
+    searchParams,
     getVotingThreshold(),
     getAppSettings(),
   ]);
+  const proposalsPage = paginateItems(proposals, {
+    page: parsePageParam(query.page),
+    pageSize: 12,
+  });
   const thresholds = getProposalThresholds(
     eligibleUsers,
     settings.voteSettings,
   );
   const proposalCards = await Promise.all(
-    proposals.map(async (proposal) => ({
+    proposalsPage.items.map(async (proposal) => ({
       proposal,
       voteComments: await getVoteCommentList(proposal.id),
     })),
   );
 
   return (
-    <div className="mx-auto grid max-w-6xl gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+    <div className="mx-auto grid max-w-6xl gap-5 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
       <section className="space-y-4 xl:order-2">
-        <div className="surface rounded-[24px] p-5">
+        <div className="surface rounded-[24px] p-4 sm:p-5">
           <p className="text-xs font-bold uppercase text-[var(--accent)]">
             Reglas del grupo
           </p>
-          <h1 className="mt-2 text-3xl font-black">Votos y propuestas</h1>
+          <h1 className="mt-2 text-2xl font-black sm:text-3xl">Votos y propuestas</h1>
           <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
             Hoy se necesitan {thresholds.approvalThreshold} voto(s) a favor al{" "}
             {settings.voteSettings.approvalPercentage}% o{" "}
@@ -62,8 +73,8 @@ export default async function ProposalsPage() {
           </p>
         </div>
 
-        <section className="surface rounded-[24px] p-5">
-          <h2 className="flex items-center gap-2 text-lg font-black">
+        <section className="surface rounded-[24px] p-4 sm:p-5">
+          <h2 className="flex items-center gap-2 text-base font-black sm:text-lg">
             <Plus className="size-5" aria-hidden />
             Proponer perfil
           </h2>
@@ -97,8 +108,8 @@ export default async function ProposalsPage() {
           </form>
         </section>
 
-        <section className="surface rounded-[24px] p-5">
-          <h2 className="flex items-center gap-2 text-lg font-black">
+        <section className="surface rounded-[24px] p-4 sm:p-5">
+          <h2 className="flex items-center gap-2 text-base font-black sm:text-lg">
             <PencilLine className="size-5" aria-hidden />
             Proponer textos
           </h2>
@@ -203,6 +214,15 @@ export default async function ProposalsPage() {
           const currentVote = proposal.votes.find(
             (vote) => vote.userId === user.id,
           )?.decision;
+          const removeImageMediaId =
+            typeof (proposal.payload as { mediaId?: unknown }).mediaId ===
+            "string"
+              ? String((proposal.payload as { mediaId?: unknown }).mediaId)
+              : null;
+          const proposalImageSrc =
+            proposal.type === "REMOVE_IMAGE" && removeImageMediaId
+              ? `/api/media/${removeImageMediaId}`
+              : `/api/proposal-media/${proposal.id}`;
 
           return (
             <article
@@ -210,7 +230,7 @@ export default async function ProposalsPage() {
               key={proposal.id}
               className="surface overflow-hidden rounded-[28px]"
             >
-              <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_220px]">
+              <div className="grid gap-5 p-4 sm:p-5 lg:p-6 lg:grid-cols-[minmax(0,1fr)_220px]">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="pill">
@@ -226,17 +246,22 @@ export default async function ProposalsPage() {
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
                     {displaySummary}
                   </p>
-                  {proposal.type === "ADD_IMAGE" &&
+                  {(proposal.type === "ADD_IMAGE" ||
+                    (proposal.type === "REMOVE_IMAGE" && removeImageMediaId)) &&
                   proposal.status === "PENDING" ? (
                     <a
-                      href={`/api/proposal-media/${proposal.id}?size=full`}
+                      href={
+                        proposal.type === "REMOVE_IMAGE" && removeImageMediaId
+                          ? proposalImageSrc
+                          : `/api/proposal-media/${proposal.id}?size=full`
+                      }
                       target="_blank"
                       rel="noreferrer"
                       className="mt-4 block max-w-xl overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-muted)]"
                       aria-label={`Ver foto propuesta: ${displaySummary}`}
                     >
                       <Image
-                        src={`/api/proposal-media/${proposal.id}`}
+                        src={proposalImageSrc}
                         alt={displaySummary}
                         width={640}
                         height={360}
@@ -290,7 +315,7 @@ export default async function ProposalsPage() {
               </div>
 
               {proposal.status === "PENDING" ? (
-                <div className="grid gap-3 border-y border-[var(--border)] bg-[var(--surface-muted)] p-4 md:grid-cols-2">
+                <div className="grid gap-3 border-y border-[var(--border)] bg-[var(--surface-muted)] p-3 sm:p-4 md:grid-cols-2">
                   <form
                     action={voteProposalAction}
                     className="soft-card rounded-2xl p-4"
@@ -341,7 +366,7 @@ export default async function ProposalsPage() {
                 </div>
               ) : null}
 
-              <div className="grid gap-4 p-5 sm:p-6 lg:grid-cols-2">
+              <div className="grid gap-4 p-4 sm:p-5 lg:p-6 lg:grid-cols-2">
                 <div className="soft-card rounded-2xl p-4">
                   <h3 className="flex items-center gap-2 font-black">
                     <MessageCircle className="size-4" aria-hidden />
@@ -388,8 +413,14 @@ export default async function ProposalsPage() {
             </article>
           );
         })}
+        <PaginationControls
+          page={proposalsPage.page}
+          totalPages={proposalsPage.totalPages}
+          searchParams={query}
+        />
         {proposals.length === 0 ? (
           <EmptyState
+            icon={Vote}
             title="Sin propuestas"
             body="Cuando alguien proponga algo, aparecera aqui."
           />

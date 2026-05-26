@@ -35,6 +35,21 @@ Proyecto preparado:
 
 Si la opcion "Connected Git Repository" no aparece conectada, entra a Vercel > Project Settings > Git > Connected Git Repository y selecciona `DanielFsH1/NoFats`. Despues cada merge a `main` despliega produccion automaticamente.
 
+## Repositorio privado
+
+El repo puede cambiarse a privado porque el proyecto ya esta conectado a Vercel. Pasos recomendados:
+
+1. En GitHub: Repository Settings > General > Danger Zone > Change visibility > Private.
+2. En GitHub: Settings > Collaborators and teams > Add people, invita a tus amigos por usuario o correo.
+3. En Vercel: Project Settings > Git, confirma que `Connected Git Repository` siga apuntando a `DanielFsH1/NoFats`.
+4. Abre un PR de prueba o empuja una rama para confirmar que Vercel crea Preview Deployments.
+
+Si Vercel pierde acceso despues de hacerlo privado, reconecta GitHub desde Project Settings > Git con la misma cuenta que tiene permisos sobre el repo.
+
+## Seguridad de despliegue
+
+La CSP esta en modo `Report-Only` para observar problemas sin romper la UI. Cuando los reportes esten limpios se puede pasar a CSP estricta. Las Server Actions aceptan origenes de produccion, previews `*.vercel.app` y localhost. Mantener `CRON_SECRET`, `BETTER_AUTH_SECRET`, `DATABASE_URL` y `BLOB_READ_WRITE_TOKEN` solo en Vercel/env local, nunca en Git.
+
 ## Cron
 
 `vercel.json` registra `/api/cron/daily-nicknames` a las `06:05 UTC`. La ruta exige:

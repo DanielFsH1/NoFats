@@ -3,6 +3,7 @@ import {
   activityEvents,
   comments,
   dailyNicknameAssignments,
+  dailyNicknameNominations,
   mediaAssets,
   nicknames,
   people,
@@ -14,7 +15,7 @@ import {
 } from "@/lib/db/schema";
 import { materializeDailyNicknames } from "@/lib/data/daily";
 import { rejectExpiredProposals } from "@/lib/data/proposal-expiration";
-import { getDateKey } from "@/lib/product/dates";
+import { getDateKey, getTomorrowDateKey } from "@/lib/product/dates";
 import {
   chooseDailyMedia,
   isSocialProfileVisible,
@@ -24,6 +25,7 @@ import { and, count, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 
 type PeopleSummaryOptions = {
   includeAdminProfiles?: boolean;
+  currentUserId?: string;
 };
 
 export async function getPeopleSummaries(
@@ -123,46 +125,57 @@ export async function getPeopleSummaries(
           .groupBy(proposals.targetPersonId)
       : [];
 
-  return rows.map((person) => {
-    const personNicknames = nicknameRows.filter(
-      (nickname) => nickname.personId === person.id,
-    );
-    const primary = personNicknames.find(
-      (nickname) => nickname.id === person.primaryNicknameId,
-    );
-    const daily = dailyRows.find((row) => row.personId === person.id);
-    const dailyNickname = personNicknames.find(
-      (nickname) => nickname.id === daily?.nicknameId,
-    );
-    const personMedia = mediaRows.filter(
-      (asset) => asset.personId === person.id,
-    );
-    const dailyPhoto =
-      chooseDailyMedia({
-        dateKey,
-        personId: person.id,
-        media: personMedia,
-      }) ?? null;
+  return rows
+    .map((person) => {
+      const personNicknames = nicknameRows.filter(
+        (nickname) => nickname.personId === person.id,
+      );
+      const primary = personNicknames.find(
+        (nickname) => nickname.id === person.primaryNicknameId,
+      );
+      const daily = dailyRows.find((row) => row.personId === person.id);
+      const dailyNickname = personNicknames.find(
+        (nickname) => nickname.id === daily?.nicknameId,
+      );
+      const personMedia = mediaRows.filter(
+        (asset) => asset.personId === person.id,
+      );
+      const dailyPhoto =
+        chooseDailyMedia({
+          dateKey,
+          personId: person.id,
+          media: personMedia,
+        }) ?? null;
 
-    return {
-      ...person,
-      displayName: resolveDisplayName({
-        initialDisplayName: person.initialDisplayName,
-        primaryNickname: primary?.value,
-        dailyNickname: dailyNickname?.value,
-      }),
-      dailyNickname: dailyNickname?.value ?? null,
-      dailyPhoto,
-      nicknameCount: personNicknames.filter(
-        (nickname) => nickname.status === "APPROVED",
-      ).length,
-      photoCount: personMedia.length,
-      pendingProposalCount:
-        Number(
-          pendingProposalRows.find((row) => row.personId === person.id)?.value,
-        ) || 0,
-    };
-  });
+      return {
+        ...person,
+        displayName: resolveDisplayName({
+          initialDisplayName: person.initialDisplayName,
+          primaryNickname: primary?.value,
+          dailyNickname: dailyNickname?.value,
+        }),
+        dailyNickname: dailyNickname?.value ?? null,
+        dailyPhoto,
+        nicknameCount: personNicknames.filter(
+          (nickname) => nickname.status === "APPROVED",
+        ).length,
+        photoCount: personMedia.length,
+        pendingProposalCount:
+          Number(
+            pendingProposalRows.find((row) => row.personId === person.id)
+              ?.value,
+          ) || 0,
+      };
+    })
+    .sort((first, second) => {
+      if (second.nicknameCount !== first.nicknameCount) {
+        return second.nicknameCount - first.nicknameCount;
+      }
+
+      return first.displayName.localeCompare(second.displayName, "es", {
+        sensitivity: "base",
+      });
+    });
 }
 
 function getPersonIdentity(
@@ -264,6 +277,7 @@ export async function getPersonProfile(
     personMedia,
     profileComments,
     profileActivity,
+    tomorrowNominations,
   ] = await Promise.all([
     db
       .select()
@@ -317,7 +331,54 @@ export async function getPersonProfile(
       .where(eq(activityEvents.personId, personId))
       .orderBy(desc(activityEvents.createdAt))
       .limit(20),
+    db
+      .select({
+        nicknameId: dailyNicknameNominations.nicknameId,
+        nominatedByUserId: dailyNicknameNominations.nominatedByUserId,
+      })
+      .from(dailyNicknameNominations)
+      .where(
+        and(
+          eq(dailyNicknameNominations.personId, personId),
+          eq(dailyNicknameNominations.forDate, getTomorrowDateKey()),
+        ),
+      ),
   ]);
+  const tomorrowNominationCountByNickname = new Map<string, number>();
+  const currentUserNominationIds = new Set<string>();
+  const nicknameProposalIds = personNicknames
+    .map((nickname) => nickname.approvedViaProposalId)
+    .filter((proposalId): proposalId is string => Boolean(proposalId));
+  const nicknameVoteRows =
+    nicknameProposalIds.length > 0
+      ? await db
+          .select({
+            id: proposalVotes.id,
+            proposalId: proposalVotes.proposalId,
+            decision: proposalVotes.decision,
+            comment: proposalVotes.comment,
+            createdAt: proposalVotes.createdAt,
+            userId: users.id,
+            authorName: users.name,
+          })
+          .from(proposalVotes)
+          .innerJoin(users, eq(proposalVotes.userId, users.id))
+          .where(inArray(proposalVotes.proposalId, nicknameProposalIds))
+      : [];
+
+  for (const nomination of tomorrowNominations) {
+    tomorrowNominationCountByNickname.set(
+      nomination.nicknameId,
+      (tomorrowNominationCountByNickname.get(nomination.nicknameId) ?? 0) + 1,
+    );
+
+    if (
+      options.currentUserId &&
+      nomination.nominatedByUserId === options.currentUserId
+    ) {
+      currentUserNominationIds.add(nomination.nicknameId);
+    }
+  }
 
   const pendingProposalRows = await db
     .select({
@@ -367,7 +428,31 @@ export async function getPersonProfile(
 
   return {
     person: personSummary,
-    nicknames: personNicknames,
+    nicknames: personNicknames.map((nickname) => ({
+      ...nickname,
+      tomorrowNominationCount:
+        tomorrowNominationCountByNickname.get(nickname.id) ?? 0,
+      nominatedByCurrentUserForTomorrow: currentUserNominationIds.has(
+        nickname.id,
+      ),
+      voteComments: nickname.approvedViaProposalId
+        ? nicknameVoteRows
+            .filter(
+              (vote) =>
+                vote.proposalId === nickname.approvedViaProposalId &&
+                vote.comment.trim().length > 0,
+            )
+            .map((vote) => ({
+              id: vote.id,
+              decision: vote.decision,
+              comment: vote.comment,
+              createdAt: vote.createdAt,
+              authorName:
+                personByUserId.get(vote.userId)?.displayName ??
+                vote.authorName,
+            }))
+        : [],
+    })),
     posts: personPosts.map((post) => ({
       ...post,
       authorName:
@@ -499,6 +584,8 @@ export async function getGallery() {
         thumbnailUrl: mediaAssets.thumbnailUrl,
         url: mediaAssets.url,
         altText: mediaAssets.altText,
+        width: mediaAssets.width,
+        height: mediaAssets.height,
         createdAt: mediaAssets.createdAt,
         displayName: people.initialDisplayName,
       })

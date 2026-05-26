@@ -1,4 +1,5 @@
 import { EmptyState } from "@/components/app-shell";
+import { ExpandablePanel } from "@/components/expandable-panel";
 import { ImageUploadForm } from "@/components/image-upload-form";
 import { MediaLightbox } from "@/components/media-lightbox";
 import { NicknameList } from "@/components/nickname-list";
@@ -11,14 +12,17 @@ import {
   createPostAction,
   deletePostAction,
   nominateDailyNicknameAction,
+  removeImageAction,
   removeNicknameAction,
   updateProfileAction,
   voteProposalAction,
 } from "@/lib/actions/app-actions";
+import { PaginationControls } from "@/components/pagination-controls";
 import { uploadImageAction } from "@/lib/actions/media-actions";
 import { getPersonProfile, getVotingThreshold } from "@/lib/data/queries";
 import { getAppSettings } from "@/lib/data/settings";
 import { formatDateTime } from "@/lib/product/dates";
+import { paginateItems, parsePageParam } from "@/lib/product/pagination";
 import {
   getProfileTheme,
   profileThemeOptions,
@@ -29,10 +33,14 @@ import {
   Camera,
   Check,
   ChevronDown,
+  FileText,
   MessageCircle,
   Pencil,
+  Quote,
   Sparkles,
   Trash2,
+  Type,
+  User,
   X,
 } from "lucide-react";
 import Image from "next/image";
@@ -43,17 +51,21 @@ export const dynamic = "force-dynamic";
 
 export default async function PersonPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const [{ user }, { id }, eligibleUsers, settings] = await Promise.all([
+  const [{ user }, { id }, query, eligibleUsers, settings] = await Promise.all([
     requireUser(),
     params,
+    searchParams,
     getVotingThreshold(),
     getAppSettings(),
   ]);
   const profile = await getPersonProfile(id, {
     includeAdminProfiles: user.role === "ADMIN",
+    currentUserId: user.id,
   });
 
   if (!profile) {
@@ -74,8 +86,17 @@ export default async function PersonPage({
       proposal.type === "ADD_NICKNAME" || proposal.type === "REMOVE_NICKNAME",
   );
   const imageProposals = profile.pendingProposals.filter(
-    (proposal) => proposal.type === "ADD_IMAGE",
+    (proposal) => proposal.type === "ADD_IMAGE" || proposal.type === "REMOVE_IMAGE",
   );
+  const approvedMedia = profile.media.filter((asset) => asset.status === "APPROVED");
+  const mediaPage = paginateItems(approvedMedia, {
+    page: parsePageParam(query.fotos),
+    pageSize: 12,
+  });
+  const postsPage = paginateItems(profile.posts, {
+    page: parsePageParam(query.publicaciones),
+    pageSize: 8,
+  });
   const thresholds = getProposalThresholds(
     eligibleUsers,
     settings.voteSettings,
@@ -93,15 +114,17 @@ export default async function PersonPage({
     "--surface-muted": profileTheme.surfaceMuted,
     "--surface-strong": profileTheme.surfaceStrong,
     "--border": profileTheme.border,
-    "--accent": profileTheme.ring,
+    "--accent": profileTheme.accent,
     "--accent-ink": profileTheme.accentInk,
+    "--accent-contrast": profileTheme.accentContrast,
+    "--accent-hover": profileTheme.accentHover,
     "--shadow": profileTheme.shadow,
     "--shadow-soft": profileTheme.shadowSoft,
   } as CSSProperties;
 
   return (
     <div
-      className="relative left-1/2 -my-6 w-screen -translate-x-1/2 overflow-hidden px-4 py-6 sm:px-6 lg:-my-8 lg:py-8"
+      className="relative left-1/2 -my-6 w-screen -translate-x-1/2 overflow-hidden px-3 py-6 sm:px-6 lg:-my-8 lg:py-8"
       style={themedPageStyle}
     >
       <div
@@ -109,16 +132,16 @@ export default async function PersonPage({
         style={{ background: profileTheme.page }}
       />
       <div
-        className="pointer-events-none absolute inset-0 z-0 opacity-75 mix-blend-soft-light"
+        className="pointer-events-none absolute inset-0 z-0 opacity-25 mix-blend-soft-light"
         style={{ background: profileTheme.banner }}
       />
-      <div className="relative z-10 mx-auto max-w-6xl space-y-6">
+      <div className="relative z-10 mx-auto max-w-6xl space-y-5 sm:space-y-6">
         <section
           className="overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow)]"
           style={{
             background: profileTheme.surface,
             color: profileTheme.text,
-            borderColor: profileTheme.ring,
+            borderColor: profileTheme.border,
           }}
         >
           <div
@@ -137,12 +160,12 @@ export default async function PersonPage({
             ) : null}
             <div className="absolute inset-0 bg-[linear-gradient(135deg,rgb(0_0_0/0.18),transparent_44%,rgb(255_255_255/0.14))]" />
           </div>
-          <div className="-mt-16 p-5 sm:p-8">
+          <div className="-mt-16 p-4 sm:p-6 lg:p-8">
             <PersonAvatar
               dailyPhoto={profile.person.dailyPhoto}
               name={profile.person.displayName}
               size="xl"
-              className="border-8"
+              className="border-8 ring-4 ring-[color-mix(in_srgb,var(--accent)_25%,transparent)] ring-offset-2 ring-offset-[var(--surface)]"
             />
             <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_340px]">
               <div>
@@ -151,7 +174,7 @@ export default async function PersonPage({
                     ? "Hoy en el perfil"
                     : "Perfil"}
                 </p>
-                <h1 className="mt-2 text-4xl font-black sm:text-6xl">
+                <h1 className="mt-2 text-3xl font-black sm:text-4xl lg:text-6xl">
                   {profile.person.displayName}
                 </h1>
                 {profile.person.fullName ? (
@@ -172,10 +195,10 @@ export default async function PersonPage({
                 </p>
               </div>
               <div
-                className="rounded-3xl border border-[var(--border)] p-5"
+                className="rounded-3xl border border-[var(--border)] p-4 sm:p-5"
                 style={{
                   background: profileTheme.panel,
-                  borderColor: profileTheme.ring,
+                  borderColor: profileTheme.border,
                 }}
               >
                 <p
@@ -200,7 +223,7 @@ export default async function PersonPage({
           </div>
         </section>
 
-        <section className="surface rounded-[28px] p-5">
+        <section className="surface rounded-[28px] p-4 sm:p-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 className="flex items-center gap-2 text-xl font-black">
@@ -229,36 +252,33 @@ export default async function PersonPage({
           </div>
 
           <div className="mt-5 grid min-h-0 gap-4 xl:grid-cols-2">
-            <div className="min-w-0 rounded-3xl border border-[var(--border)] bg-[var(--surface-muted)] p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <h3 className="text-sm font-black uppercase text-[var(--muted)]">
-                  Apodos aprobados
-                </h3>
-                <span className="rounded-full bg-[var(--surface-strong)] px-2 py-1 text-xs font-black text-[var(--muted)]">
-                  {approvedNicknames.length}
-                </span>
-              </div>
+            <ExpandablePanel
+              title="Apodos aprobados"
+              count={approvedNicknames.length}
+              openLabel="Ver apodos"
+            >
               <NicknameList
                 nicknames={approvedNicknames.map((nickname) => ({
                   id: nickname.id,
                   value: nickname.value,
                   status: nickname.status,
+                  tomorrowNominationCount:
+                    nickname.tomorrowNominationCount,
+                  nominatedByCurrentUserForTomorrow:
+                    nickname.nominatedByCurrentUserForTomorrow,
+                  voteComments: nickname.voteComments,
                 }))}
                 personId={profile.person.id}
                 nominateAction={nominateDailyNicknameAction}
                 removeAction={removeNicknameAction}
               />
-            </div>
+            </ExpandablePanel>
 
-            <div className="min-w-0 rounded-3xl border border-[var(--border)] bg-[var(--surface-muted)] p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <h3 className="text-sm font-black uppercase text-[var(--muted)]">
-                  Pendientes de aprobacion
-                </h3>
-                <span className="rounded-full bg-[var(--surface-strong)] px-2 py-1 text-xs font-black text-[var(--muted)]">
-                  {nicknameProposals.length}
-                </span>
-              </div>
+            <ExpandablePanel
+              title="Pendientes de aprobacion"
+              count={nicknameProposals.length}
+              openLabel="Ver pendientes"
+            >
               <NicknameProposalList
                 proposals={nicknameProposals}
                 currentUserId={user.id}
@@ -266,7 +286,7 @@ export default async function PersonPage({
                 rejectionThreshold={thresholds.rejectionThreshold}
                 voteAction={voteProposalAction}
               />
-            </div>
+            </ExpandablePanel>
           </div>
         </section>
 
@@ -298,6 +318,7 @@ export default async function PersonPage({
               <div className="mt-3 grid gap-3 lg:grid-cols-2">
                 {imageProposals.map((proposal) => {
                   const payload = proposal.payload as {
+                    mediaId?: unknown;
                     altText?: unknown;
                     width?: unknown;
                     height?: unknown;
@@ -326,22 +347,34 @@ export default async function PersonPage({
                   return (
                     <details
                       key={proposal.id}
+                      name="image-proposals"
                       className="group rounded-3xl border border-[var(--border)] bg-[var(--surface-muted)] p-3 sm:p-4"
                     >
                       <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
                         <span className="flex min-w-0 items-center gap-3">
-                          <PersonAvatar
-                            dailyPhoto={proposal.creatorDailyPhoto}
-                            name={proposal.creatorDisplayName}
-                            size="sm"
-                            className="!size-10 !rounded-xl !border-2 text-xs"
-                          />
+                          <span className="relative size-14 shrink-0 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
+                            <Image
+                              src={
+                                proposal.type === "REMOVE_IMAGE" &&
+                                typeof payload.mediaId === "string"
+                                  ? `/api/media/${payload.mediaId}`
+                                  : `/api/proposal-media/${proposal.id}`
+                              }
+                              alt={label}
+                              fill
+                              sizes="56px"
+                              unoptimized
+                              className="object-cover"
+                            />
+                          </span>
                           <span className="min-w-0">
                             <span className="block truncate text-sm font-black">
                               {label}
                             </span>
                             <span className="mt-1 block text-xs text-[var(--muted)]">
-                              {proposal.creatorDisplayName} propuso esta foto
+                              {proposal.type === "REMOVE_IMAGE"
+                                ? `${proposal.creatorDisplayName} propuso quitar esta foto`
+                                : `${proposal.creatorDisplayName} propuso esta foto`}
                             </span>
                           </span>
                         </span>
@@ -363,8 +396,18 @@ export default async function PersonPage({
 
                       <div className="mt-4 space-y-4 border-t border-[var(--border)] pt-4">
                         <MediaLightbox
-                          src={`/api/proposal-media/${proposal.id}`}
-                          fullSrc={`/api/proposal-media/${proposal.id}?size=full`}
+                          src={
+                            proposal.type === "REMOVE_IMAGE" &&
+                            typeof payload.mediaId === "string"
+                              ? `/api/media/${payload.mediaId}`
+                              : `/api/proposal-media/${proposal.id}`
+                          }
+                          fullSrc={
+                            proposal.type === "REMOVE_IMAGE" &&
+                            typeof payload.mediaId === "string"
+                              ? `/api/media/${payload.mediaId}`
+                              : `/api/proposal-media/${proposal.id}?size=full`
+                          }
                           alt={label}
                           width={
                             typeof payload.width === "number"
@@ -523,10 +566,8 @@ export default async function PersonPage({
             </div>
           ) : null}
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {profile.media
-              .filter((asset) => asset.status === "APPROVED")
-              .map((asset) => {
+          <div className="mt-6 grid auto-rows-[7rem] grid-cols-2 gap-1.5 sm:auto-rows-[7rem] sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+            {mediaPage.items.map((asset) => {
                 const isTall =
                   asset.width && asset.height
                     ? asset.height / asset.width > 1.2
@@ -535,37 +576,61 @@ export default async function PersonPage({
                   asset.width && asset.height
                     ? asset.width / asset.height > 1.35
                     : false;
-                const aspectClass = isTall
-                  ? "aspect-[4/5]"
+                const tileClass = isTall
+                  ? "row-span-2"
                   : isWide
-                    ? "aspect-[16/10]"
-                    : "aspect-square";
+                    ? "col-span-2"
+                    : "";
 
                 return (
-                  <MediaLightbox
+                  <figure
                     key={asset.id}
-                    src={`/api/media/${asset.id}`}
-                    alt={asset.altText || "Foto del perfil"}
-                    width={asset.width}
-                    height={asset.height}
-                    className="rounded-3xl border border-[var(--border)] bg-[var(--surface-muted)] shadow-[var(--shadow-soft)]"
-                    imageClassName={`${aspectClass} w-full object-cover`}
-                  />
+                    className={`${tileClass} group/photo relative min-w-0 overflow-hidden rounded-xl`}
+                  >
+                    <MediaLightbox
+                      src={`/api/media/${asset.id}`}
+                      alt={asset.altText || "Foto del perfil"}
+                      width={asset.width}
+                      height={asset.height}
+                      className="h-full w-full rounded-xl border border-[var(--border)] bg-[var(--surface-muted)]"
+                      imageClassName="h-full w-full object-cover"
+                    />
+                    <form
+                      action={removeImageAction}
+                      className="absolute right-2 top-2 opacity-0 transition group-hover/photo:opacity-100 group-focus-within/photo:opacity-100"
+                    >
+                      <input type="hidden" name="mediaId" value={asset.id} />
+                      <button
+                        type="submit"
+                        className="grid size-9 place-items-center rounded-full bg-black/60 text-white shadow-sm transition hover:bg-[var(--danger)]"
+                        aria-label="Proponer quitar foto"
+                        title="Quitar foto"
+                      >
+                        <Trash2 className="size-4" aria-hidden />
+                      </button>
+                    </form>
+                  </figure>
                 );
               })}
           </div>
-          {profile.media.filter((asset) => asset.status === "APPROVED")
-            .length === 0 ? (
+          <PaginationControls
+            page={mediaPage.page}
+            totalPages={mediaPage.totalPages}
+            searchParams={query}
+            pageParam="fotos"
+          />
+          {approvedMedia.length === 0 ? (
             <EmptyState
+              icon={Camera}
               title="Sin fotos"
               body="Cuando haya fotos aprobadas, apareceran en esta galeria."
             />
           ) : null}
         </section>
 
-        <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-          <div className="space-y-6">
-            <div className="surface rounded-[28px] p-5">
+        <section className="grid gap-5 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="space-y-5 sm:space-y-6">
+            <div className="surface rounded-[28px] p-4 sm:p-5">
               <h2 className="flex items-center gap-2 text-2xl font-black">
                 <MessageCircle className="size-5" aria-hidden />
                 Publicaciones
@@ -586,10 +651,10 @@ export default async function PersonPage({
                 <SubmitButton>Publicar</SubmitButton>
               </form>
               <div className="mt-6 space-y-4">
-                {profile.posts.map((post) => (
+                {postsPage.items.map((post) => (
                   <article
                     key={post.id}
-                    className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5"
+                    className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5 transition-all duration-200 hover:shadow-md"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
@@ -649,8 +714,15 @@ export default async function PersonPage({
                     ) : null}
                   </article>
                 ))}
+                <PaginationControls
+                  page={postsPage.page}
+                  totalPages={postsPage.totalPages}
+                  searchParams={query}
+                  pageParam="publicaciones"
+                />
                 {profile.posts.length === 0 ? (
                   <EmptyState
+                    icon={MessageCircle}
                     title="Sin publicaciones"
                     body="Aun no hay publicaciones."
                   />
@@ -658,8 +730,8 @@ export default async function PersonPage({
               </div>
             </div>
 
-            <div className="surface rounded-[28px] p-5">
-              <h2 className="text-2xl font-black">Comentarios generales</h2>
+            <div className="surface rounded-[28px] p-4 sm:p-5">
+              <h2 className="text-xl font-black sm:text-2xl">Comentarios generales</h2>
               <form action={addCommentAction} className="mt-4 flex gap-2">
                 <input type="hidden" name="subjectType" value="PERSON" />
                 <input
@@ -702,9 +774,9 @@ export default async function PersonPage({
             </div>
           </div>
 
-          <aside className="space-y-6">
+          <aside className="space-y-5 sm:space-y-6">
             {canEdit ? (
-              <section className="surface rounded-[28px] p-5">
+              <section className="surface rounded-[28px] p-4 sm:p-5">
                 <h2 className="flex items-center gap-2 text-xl font-black">
                   <Pencil className="size-5" aria-hidden />
                   Personalizar
@@ -715,6 +787,10 @@ export default async function PersonPage({
                     name="personId"
                     value={profile.person.id}
                   />
+                  <label className="flex items-center gap-2 text-sm font-semibold text-[var(--muted)]">
+                    <User className="size-4 shrink-0" aria-hidden />
+                    Nombre completo
+                  </label>
                   <input
                     name="fullName"
                     aria-label="Nombre completo o descriptivo"
@@ -722,6 +798,10 @@ export default async function PersonPage({
                     placeholder="Nombre completo o descriptivo"
                     className="field h-11 w-full px-3"
                   />
+                  <label className="flex items-center gap-2 text-sm font-semibold text-[var(--muted)]">
+                    <Type className="size-4 shrink-0" aria-hidden />
+                    Bio corta
+                  </label>
                   <input
                     name="bio"
                     aria-label="Bio corta"
@@ -729,6 +809,10 @@ export default async function PersonPage({
                     placeholder="Bio corta"
                     className="field h-11 w-full px-3"
                   />
+                  <label className="flex items-center gap-2 text-sm font-semibold text-[var(--muted)]">
+                    <FileText className="size-4 shrink-0" aria-hidden />
+                    Descripcion
+                  </label>
                   <textarea
                     name="description"
                     aria-label="Descripcion"
@@ -736,6 +820,10 @@ export default async function PersonPage({
                     placeholder="Descripcion"
                     className="field min-h-24 w-full p-3"
                   />
+                  <label className="flex items-center gap-2 text-sm font-semibold text-[var(--muted)]">
+                    <Quote className="size-4 shrink-0" aria-hidden />
+                    Frase personal
+                  </label>
                   <input
                     name="phrase"
                     aria-label="Frase personal"

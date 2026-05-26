@@ -1,4 +1,5 @@
 import { materializeDailyNicknames } from "@/lib/data/daily";
+import { rejectExpiredProposals } from "@/lib/data/proposal-expiration";
 import { getDateKey } from "@/lib/product/dates";
 
 export async function GET(request: Request) {
@@ -9,7 +10,7 @@ export async function GET(request: Request) {
   }
 
   const dateKey = getDateKey();
-  await materializeDailyNicknames(dateKey);
+  await Promise.all([materializeDailyNicknames(dateKey), rejectExpiredProposals()]);
 
   return Response.json({ ok: true, dateKey });
 }

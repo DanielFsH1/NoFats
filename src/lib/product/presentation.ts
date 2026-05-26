@@ -2,6 +2,7 @@ type ProposalType =
   | "ADD_NICKNAME"
   | "REMOVE_NICKNAME"
   | "ADD_IMAGE"
+  | "REMOVE_IMAGE"
   | "REMOVE_POST"
   | "CREATE_FICTIONAL_PERSON"
   | "UPDATE_SITE_COPY"
@@ -26,6 +27,7 @@ export function proposalTypeLabel(type: ProposalType) {
     ADD_NICKNAME: "Apodo",
     REMOVE_NICKNAME: "Quitar apodo",
     ADD_IMAGE: "Foto",
+    REMOVE_IMAGE: "Quitar foto",
     REMOVE_POST: "Moderacion",
     CREATE_FICTIONAL_PERSON: "Nuevo perfil",
     UPDATE_SITE_COPY: "Textos",
@@ -72,6 +74,7 @@ export function activityTypeLabel(type: string) {
     "person.fictional_created": "Perfil creado",
     "proposal.created": "Propuesta nueva",
     "settings.site_copy_updated": "Textos actualizados",
+    "settings.site_copy_field_updated": "Texto editado",
     "settings.voting_updated": "Votacion ajustada",
     "person.updated": "Perfil editado",
     "nickname.added": "Apodo agregado",
@@ -110,6 +113,12 @@ export function proposalDisplayTitle(input: ProposalCopyInput) {
       : `${actor} compartio una foto`;
   }
 
+  if (input.type === "REMOVE_IMAGE") {
+    return target
+      ? `${actor} quiere quitar una foto de ${target}`
+      : `${actor} quiere quitar una foto`;
+  }
+
   if (input.type === "REMOVE_POST") {
     return target
       ? `${actor} pidio borrar una publicacion en ${target}`
@@ -138,6 +147,10 @@ export function proposalDisplaySummary(input: ProposalCopyInput) {
 
   if (input.type === "ADD_IMAGE") {
     return clean(payload.altText) ?? "Foto pendiente de aprobacion.";
+  }
+
+  if (input.type === "REMOVE_IMAGE") {
+    return clean(payload.altText) ?? "Foto pendiente de eliminacion.";
   }
 
   return clean(input.summary) ?? "El grupo decide con votos y comentarios.";

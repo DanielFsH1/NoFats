@@ -32,7 +32,7 @@ export default async function InvitePage({
           </p>
           <Link
             href="/login"
-            className="mt-6 inline-flex h-11 items-center rounded-xl bg-[var(--accent)] px-4 font-semibold text-white"
+            className="mt-6 inline-flex h-11 items-center rounded-xl bg-[var(--accent)] px-4 font-semibold text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)]"
           >
             Ir a login
           </Link>
