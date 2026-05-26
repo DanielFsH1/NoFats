@@ -444,6 +444,32 @@ export const auditLogs = pgTable(
   ],
 );
 
+export const rateLimits = pgTable(
+  "rate_limits",
+  {
+    id: text("id").primaryKey(),
+    scope: text("scope").notNull(),
+    identifierHash: text("identifier_hash").notNull(),
+    action: text("action").notNull(),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    windowSeconds: integer("window_seconds").notNull(),
+    count: integer("count").notNull().default(0),
+    blockedCount: integer("blocked_count").notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("rate_limits_lookup_idx").on(
+      table.scope,
+      table.identifierHash,
+      table.action,
+      table.windowStart,
+    ),
+    index("rate_limits_updated_idx").on(table.updatedAt),
+  ],
+);
+
 export const moderationActions = pgTable("moderation_actions", {
   id: text("id").primaryKey(),
   targetType: text("target_type").notNull(),

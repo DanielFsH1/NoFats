@@ -61,6 +61,12 @@ Todas las variables estan documentadas en `.env.example`.
 - `CRON_SECRET`: secreto para `/api/cron/daily-nicknames`.
 - `ADMIN_*`: datos del primer administrador.
 
+## Seguridad
+
+NoFats esta pensada como app privada. Las rutas internas exigen sesion, las imagenes se guardan en Blob privado y se sirven solo por APIs autenticadas. Ademas hay headers de seguridad globales, CSP en modo reporte, bloqueo contra clickjacking, validacion de origen para acciones sensibles, rate limiting suave, sanitizacion de textos, validacion real de imagenes con Sharp y auditoria de intentos bloqueados.
+
+El repositorio puede quedar privado sin afectar el deploy si Vercel conserva la autorizacion de GitHub. En GitHub ve a Settings > General > Danger Zone > Change visibility y cambialo a privado; despues invita a tus amigos desde Settings > Collaborators and teams. Verifica en Vercel > Project Settings > Git que `DanielFsH1/NoFats` siga conectado.
+
 ## Configuracion dentro de la app
 
 - Admin > Umbrales de votacion: cambia el porcentaje requerido para aprobar y rechazar propuestas.

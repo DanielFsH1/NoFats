@@ -20,6 +20,24 @@ test("private media APIs reject unauthenticated visitors", async ({ request }) =
   expect(proposedMedia.status()).toBe(401);
 });
 
+test("security headers are present on pages and private APIs", async ({
+  request,
+}) => {
+  const login = await request.get("/login");
+  const media = await request.get("/api/media/missing-media");
+
+  for (const response of [login, media]) {
+    expect(response.headers()["x-content-type-options"]).toBe("nosniff");
+    expect(response.headers()["x-frame-options"]).toBe("DENY");
+    expect(response.headers()["referrer-policy"]).toBe(
+      "strict-origin-when-cross-origin",
+    );
+    expect(
+      response.headers()["content-security-policy-report-only"],
+    ).toContain("frame-ancestors 'none'");
+  }
+});
+
 test("login page is public", async ({ page }) => {
   await page.goto("/login");
   await expect(page.getByRole("heading", { name: "Entrar" })).toBeVisible();

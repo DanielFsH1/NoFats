@@ -11,6 +11,8 @@ import {
   users,
 } from "@/lib/db/schema";
 import { id } from "@/lib/ids";
+import { rateLimitByIp } from "@/lib/security/rate-limit";
+import { assertTrustedOrigin } from "@/lib/security/request";
 import { hashInviteToken } from "@/lib/security/token";
 import {
   emailSchema,
@@ -47,6 +49,19 @@ export async function signInWithPasswordAction(
     return { message: "Correo o contrasena invalidos." };
   }
 
+  const requestHeaders = await headers();
+  try {
+    assertTrustedOrigin(requestHeaders);
+    await rateLimitByIp("auth:login", requestHeaders);
+  } catch (error) {
+    return {
+      message:
+        error instanceof Error
+          ? error.message
+          : "Espera un momento antes de volver a intentar.",
+    };
+  }
+
   try {
     await auth.api.signInEmail({
       body: {
@@ -55,7 +70,7 @@ export async function signInWithPasswordAction(
         callbackURL: next,
         rememberMe: true,
       },
-      headers: await headers(),
+      headers: requestHeaders,
     });
   } catch {
     return { message: "No pudimos iniciar sesion con esos datos." };
@@ -78,6 +93,19 @@ export async function registerWithInvite(
 
   if (!parsed.success) {
     return { message: parsed.error.issues[0]?.message ?? "Datos invalidos." };
+  }
+
+  const requestHeaders = await headers();
+  try {
+    assertTrustedOrigin(requestHeaders);
+    await rateLimitByIp("auth:invite", requestHeaders);
+  } catch (error) {
+    return {
+      message:
+        error instanceof Error
+          ? error.message
+          : "Espera un momento antes de volver a intentar.",
+    };
   }
 
   const db = getDb();
@@ -103,7 +131,7 @@ export async function registerWithInvite(
       password: parsed.data.password,
       name: parsed.data.fullName,
     },
-    headers: await headers(),
+    headers: requestHeaders,
   });
   const user = response.user;
   const personId = id("person");
@@ -159,8 +187,11 @@ export async function registerWithInvite(
 }
 
 export async function signOutAction() {
+  const requestHeaders = await headers();
+  assertTrustedOrigin(requestHeaders);
+
   await auth.api.signOut({
-    headers: await headers(),
+    headers: requestHeaders,
   });
 
   redirect("/login");

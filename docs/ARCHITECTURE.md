@@ -15,6 +15,16 @@
 
 Las imagenes se suben a Vercel Blob con `access: "private"` y se sirven por `/api/media/[id]`, que exige sesion.
 
+## Seguridad interna
+
+- `next.config.ts` aplica headers globales: `nosniff`, `DENY` para iframes, `Referrer-Policy`, `Permissions-Policy` y `Content-Security-Policy-Report-Only`.
+- `serverActions.allowedOrigins` limita acciones a produccion, previews de Vercel y localhost; `bodySizeLimit` reduce payloads enormes.
+- `src/lib/security/request.ts` valida `Origin`/`Host` en acciones sensibles.
+- `src/lib/security/rate-limit.ts` aplica limites suaves por IP o usuario para login, invitaciones, votos, posts, comentarios, apodos, postulaciones y fotos. Los bloqueos quedan auditados.
+- `src/lib/security/text.ts` normaliza Unicode, elimina caracteres invisibles/control y recorta textos antes de validarlos.
+- `src/lib/security/image.ts` valida el contenido real de las imagenes con Sharp y rechaza formatos peligrosos antes de optimizar a WebP.
+- Las APIs de medios no muestran datos privados a usuarios sin sesion y devuelven `404` cuando un recurso privado no debe revelarse.
+
 ## Personas y perfiles
 
 La tabla `people` representa tanto usuarios reales como perfiles no reales. `kind` nunca se muestra en UI publica; solo se usa para permisos y votacion. Los perfiles no reales no tienen fila de usuario ni credenciales.

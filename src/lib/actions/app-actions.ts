@@ -37,6 +37,7 @@ import {
   normalizeVoteSettings,
   shouldReplacePrimaryNickname,
 } from "@/lib/product/rules";
+import { rateLimitByUser } from "@/lib/security/rate-limit";
 import { createInviteToken, hashInviteToken } from "@/lib/security/token";
 import { requireAdmin, requireUser } from "@/lib/session";
 import { getBaseUrl } from "@/lib/urls";
@@ -259,6 +260,7 @@ async function createPendingProposal(input: {
 
 export async function createRegistrationSlotAction(formData: FormData) {
   const { user } = await requireAdmin();
+  await rateLimitByUser(user.id, "admin:write");
   const shortName = shortTextSchema.parse(getString(formData, "shortName"));
   const token = createInviteToken();
   const slotId = id("slot");
@@ -285,6 +287,7 @@ export async function createRegistrationSlotAction(formData: FormData) {
 
 export async function disableRegistrationSlotAction(formData: FormData) {
   const { user } = await requireAdmin();
+  await rateLimitByUser(user.id, "admin:write");
   const slotId = getString(formData, "slotId");
 
   await getDb()
@@ -304,6 +307,7 @@ export async function disableRegistrationSlotAction(formData: FormData) {
 
 export async function createFictionalPersonAction(formData: FormData) {
   const { user } = await requireAdmin();
+  await rateLimitByUser(user.id, "admin:write");
   const displayName = shortTextSchema.parse(getString(formData, "displayName"));
   const fullName = getString(formData, "fullName").trim();
   const personId = id("person");
@@ -329,6 +333,7 @@ export async function createFictionalPersonAction(formData: FormData) {
 
 export async function proposeFictionalPersonAction(formData: FormData) {
   const { user } = await requireUser();
+  await rateLimitByUser(user.id, "proposal:create");
   const displayName = shortTextSchema.parse(getString(formData, "displayName"));
   const fullName = getString(formData, "fullName").trim();
 
@@ -351,6 +356,7 @@ export async function proposeFictionalPersonAction(formData: FormData) {
 
 export async function proposeSiteCopyAction(formData: FormData) {
   const { user } = await requireUser();
+  await rateLimitByUser(user.id, "proposal:create");
   const copy = siteCopySchema.parse({
     appName: getString(formData, "appName"),
     loginEyebrow: getString(formData, "loginEyebrow"),
@@ -379,6 +385,7 @@ export async function proposeSiteCopyAction(formData: FormData) {
 
 export async function updateSiteCopyFieldAction(formData: FormData) {
   const { user } = await requireUser();
+  await rateLimitByUser(user.id, "settings:update");
   const before = await getAppSettings();
   const field = getString(formData, "field");
   const value = getString(formData, "value");
@@ -424,6 +431,7 @@ export async function updateSiteCopyFieldAction(formData: FormData) {
 
 export async function updateSiteCopyAction(formData: FormData) {
   const { user } = await requireAdmin();
+  await rateLimitByUser(user.id, "settings:update");
   const before = await getAppSettings();
   const copy = siteCopySchema.parse({
     appName: getString(formData, "appName"),
@@ -456,6 +464,7 @@ export async function updateSiteCopyAction(formData: FormData) {
 
 export async function updateVoteSettingsAction(formData: FormData) {
   const { user } = await requireAdmin();
+  await rateLimitByUser(user.id, "settings:update");
   const before = await getAppSettings();
   const settings = normalizeVoteSettings(
     voteSettingsSchema.parse({
@@ -485,6 +494,7 @@ export async function updateVoteSettingsAction(formData: FormData) {
 
 export async function updateProfileAction(formData: FormData) {
   const { user } = await requireUser();
+  await rateLimitByUser(user.id, "profile:update");
   const personId = getString(formData, "personId");
   const db = getDb();
   const [target] = await db
@@ -541,6 +551,7 @@ export async function updateProfileAction(formData: FormData) {
 
 export async function addNicknameAction(formData: FormData) {
   const { user } = await requireUser();
+  await rateLimitByUser(user.id, "nickname:add");
   const personId = getString(formData, "personId");
   const value = shortTextSchema.parse(getString(formData, "nickname"));
   const db = getDb();
@@ -605,6 +616,7 @@ export async function addNicknameAction(formData: FormData) {
 
 export async function removeNicknameAction(formData: FormData) {
   const { user } = await requireUser();
+  await rateLimitByUser(user.id, "nickname:remove");
   const nicknameId = getString(formData, "nicknameId");
   const db = getDb();
   const [nickname] = await db
@@ -654,6 +666,7 @@ export async function removeNicknameAction(formData: FormData) {
 
 export async function removeImageAction(formData: FormData) {
   const { user } = await requireUser();
+  await rateLimitByUser(user.id, "media:upload");
   const mediaId = getString(formData, "mediaId");
   const db = getDb();
   const [asset] = await db
@@ -709,6 +722,7 @@ export async function removeImageAction(formData: FormData) {
 
 export async function nominateDailyNicknameAction(formData: FormData) {
   const { user } = await requireUser();
+  await rateLimitByUser(user.id, "daily:nickname");
   const personId = getString(formData, "personId");
   const nicknameId = getString(formData, "nicknameId");
 
@@ -737,6 +751,7 @@ export async function nominateDailyNicknameAction(formData: FormData) {
 
 export async function createPostAction(formData: FormData) {
   const { user } = await requireUser();
+  await rateLimitByUser(user.id, "post:create");
   const personId = getString(formData, "personId");
   const parentPostId = getString(formData, "parentPostId") || null;
   const body = bodySchema.parse(getString(formData, "body"));
@@ -766,6 +781,7 @@ export async function createPostAction(formData: FormData) {
 
 export async function deletePostAction(formData: FormData) {
   const { user } = await requireUser();
+  await rateLimitByUser(user.id, "post:delete");
   const postId = getString(formData, "postId");
   const db = getDb();
   const [post] = await db
@@ -816,6 +832,7 @@ export async function deletePostAction(formData: FormData) {
 
 export async function addCommentAction(formData: FormData) {
   const { user } = await requireUser();
+  await rateLimitByUser(user.id, "comment:create");
   const subjectType = getString(formData, "subjectType") as
     | "PERSON"
     | "PROPOSAL"
@@ -850,6 +867,7 @@ export async function addCommentAction(formData: FormData) {
 
 export async function addProposalCommentAction(formData: FormData) {
   const { user } = await requireUser();
+  await rateLimitByUser(user.id, "comment:create");
   const proposalId = getString(formData, "proposalId");
   const body = bodySchema.parse(getString(formData, "body"));
 
@@ -867,6 +885,7 @@ export async function addProposalCommentAction(formData: FormData) {
 
 export async function voteProposalAction(formData: FormData) {
   const { user } = await requireUser();
+  await rateLimitByUser(user.id, "proposal:vote");
   await rejectExpiredProposals();
   const proposalId = getString(formData, "proposalId");
   const decision =
@@ -1170,6 +1189,7 @@ async function applyProposal(proposal: typeof proposals.$inferSelect) {
 
 export async function toggleUserDisabledAction(formData: FormData) {
   const { user } = await requireAdmin();
+  await rateLimitByUser(user.id, "admin:write");
   const userId = getString(formData, "userId");
   const disabled = getString(formData, "disabled") === "true";
 

@@ -11,6 +11,9 @@ import {
 } from "@/lib/db/schema";
 import { id } from "@/lib/ids";
 import { canAddOwnProfileContentDirectly } from "@/lib/product/rules";
+import { assertSafeImageBuffer } from "@/lib/security/image";
+import { rateLimitByUser } from "@/lib/security/rate-limit";
+import { cleanUserText } from "@/lib/security/text";
 import { requireUser } from "@/lib/session";
 import { getString, imageFileSchema } from "@/lib/validation";
 import { eq } from "drizzle-orm";
@@ -19,8 +22,11 @@ import sharp from "sharp";
 
 export async function uploadImageAction(formData: FormData) {
   const { user } = await requireUser();
+  await rateLimitByUser(user.id, "media:upload");
   const personId = getString(formData, "personId");
-  const altText = getString(formData, "altText").trim().slice(0, 180);
+  const altText = cleanUserText(getString(formData, "altText"), {
+    maxLength: 180,
+  });
   const file = formData.get("image");
 
   if (!(file instanceof File) || file.size === 0) {
@@ -37,8 +43,8 @@ export async function uploadImageAction(formData: FormData) {
   }
 
   const inputBuffer = Buffer.from(await file.arrayBuffer());
+  const metadata = await assertSafeImageBuffer(inputBuffer);
   const image = sharp(inputBuffer).rotate();
-  const metadata = await image.metadata();
   const optimized = await image
     .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
     .webp({ quality: 82 })

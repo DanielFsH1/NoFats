@@ -1,13 +1,17 @@
 import { auth } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { people } from "@/lib/db/schema";
+import { assertTrustedOrigin } from "@/lib/security/request";
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 export async function getSession() {
+  const requestHeaders = await headers();
+  assertTrustedOrigin(requestHeaders);
+
   return auth.api.getSession({
-    headers: await headers(),
+    headers: requestHeaders,
   });
 }
 
